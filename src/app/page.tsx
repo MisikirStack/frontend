@@ -222,10 +222,10 @@ export default function Home() {
                 area
               </p>
               <div className="relative mx-auto mb-6 max-w-2xl animate-fade-in-up animation-delay-400">
-                <form onSubmit={(e) => { e.preventDefault(); }} className="flex">
+                <form onSubmit={(e) => { e.preventDefault(); }} className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1">
                     <Input
-                      className="h-12 pl-10 pr-4 rounded-r-none border-r-0"
+                      className="h-12 pl-10 pr-4"
                       placeholder="Search for businesses, services, or categories..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -234,37 +234,46 @@ export default function Home() {
                       <Search className="h-5 w-5" />
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="h-12 rounded-l-none"
-                      >
-                        <Filter className="mr-2 h-4 w-4" />
-                        Filters
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem onClick={handleClick}>
-                        Category
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleClick}>
-                        Subcategory
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleClick}>
-                        Location
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleClick}>
-                        Rating
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleClick}>
-                        Number of Reviews
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleClick}>
-                        Number of Views
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex gap-3">
+                    <Button
+                      type="submit"
+                      className="h-12 px-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <Search className="mr-2 h-4 w-4" />
+                      Search
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="h-12 px-6"
+                        >
+                          <Filter className="mr-2 h-4 w-4" />
+                          Filters
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={handleClick}>
+                          Category
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleClick}>
+                          Subcategory
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleClick}>
+                          Location
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleClick}>
+                          Rating
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleClick}>
+                          Number of Reviews
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleClick}>
+                          Number of Views
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </form>
               </div>
               <div className="flex flex-wrap justify-center gap-2 animate-fade-in-up animation-delay-600">
@@ -389,8 +398,8 @@ export default function Home() {
                           >
                             <Heart
                               className={`h-4 w-4 transition-colors ${isFavorite(business.id)
-                                  ? 'fill-red-500 text-red-500'
-                                  : ''
+                                ? 'fill-red-500 text-red-500'
+                                : ''
                                 }`}
                             />
                           </Button>
