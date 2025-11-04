@@ -61,7 +61,7 @@ export default function RegisterBusinessPage() {
         name: formData.name,
         phone: formData.phone || undefined,
       });
-      
+
       router.push("/");
     } catch (err) {
       if (err instanceof ApiError) {

@@ -155,7 +155,7 @@ export function useBusinessSearch(query: string) {
 
             try {
                 const response = await SearchService.searchCompanies({ search: query })
-                
+
                 const transformedResults: Business[] = response.results.map((company: CompanyList) => ({
                     id: company.id,
                     name: company.name,
