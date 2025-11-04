@@ -1,20 +1,67 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Star } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { ApiError } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
 
-  const handleClick = () => {
+  const handleGoogleLogin = () => {
     window.open(
       "https://docs.google.com/forms/d/1r04BOtkIROzUvmIM6PNXuP1NSeJoc0s05HrIT2C7qCU/edit",
       "_blank"
     );
+  };
+
+  const handleTelegramLogin = () => {
+    window.open(
+      "https://docs.google.com/forms/d/1r04BOtkIROzUvmIM6PNXuP1NSeJoc0s05HrIT2C7qCU/edit",
+      "_blank"
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await login({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      router.push("/");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || "Invalid email or password");
+      } else {
+        setError("An error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.id]: e.target.value,
+    }));
   };
 
   return (
@@ -25,14 +72,14 @@ export default function LoginPage() {
       </Link>
 
       <div className="mx-auto w-full max-w-md space-y-6 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-lg">
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            {/* OAuth Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <Button
+                type="button"
                 variant="outline"
                 className="w-full h-12 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600"
-                onClick={handleClick}
+                onClick={handleGoogleLogin}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path
@@ -54,28 +101,16 @@ export default function LoginPage() {
                 </svg>
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 className="w-full h-12 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600"
-                onClick={handleClick}
+                onClick={handleTelegramLogin}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z"
-                    fill="url(#telegram-gradient)"
-                  />
-                  <path
-                    d="M8.93 11.5L16.07 8.93C16.38 8.82 16.65 9.03 16.55 9.53L16.56 9.52L15.09 16.73C14.98 17.18 14.73 17.29 14.38 17.08L12.23 15.46L11.2 16.45C11.09 16.56 10.99 16.66 10.77 16.66L10.92 14.47L14.84 10.93C15.01 10.78 14.8 10.69 14.57 10.84L9.68 13.88L7.56 13.2C7.13 13.07 7.12 12.79 7.66 12.58L8.93 11.5Z"
-                    fill="white"
-                  />
+                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z" fill="url(#telegram-gradient-login)" />
+                  <path d="M8.93 11.5L16.07 8.93C16.38 8.82 16.65 9.03 16.55 9.53L16.56 9.52L15.09 16.73C14.98 17.18 14.73 17.29 14.38 17.08L12.23 15.46L11.2 16.45C11.09 16.56 10.99 16.66 10.77 16.66L10.92 14.47L14.84 10.93C15.01 10.78 14.8 10.69 14.57 10.84L9.68 13.88L7.56 13.2C7.13 13.07 7.12 12.79 7.66 12.58L8.93 11.5Z" fill="white" />
                   <defs>
-                    <linearGradient
-                      id="telegram-gradient"
-                      x1="12"
-                      y1="2"
-                      x2="12"
-                      y2="22"
-                      gradientUnits="userSpaceOnUse"
-                    >
+                    <linearGradient id="telegram-gradient-login" x1="12" y1="2" x2="12" y2="22" gradientUnits="userSpaceOnUse">
                       <stop stopColor="#2AABEE" />
                       <stop offset="1" stopColor="#229ED9" />
                     </linearGradient>
@@ -95,55 +130,39 @@ export default function LoginPage() {
 
             <div className="space-y-2 text-center">
               <h1 className="text-2xl font-bold dark:text-white">Welcome back</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Enter your credentials to access your account
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Enter your credentials to access your account</p>
             </div>
+
+            {error && (
+              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
+            )}
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email or Phone Number</Label>
-                <Input id="email" placeholder="john@example.com or +251912345678" required />
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" placeholder="john@example.com" value={formData.email} onChange={handleChange} required disabled={isLoading} />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="#"
-                    className="text-xs text-green-600 dark:text-green-500 hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
+                  <Link href="#" className="text-xs text-green-600 dark:text-green-500 hover:underline">Forgot password?</Link>
                 </div>
-                <Input id="password" type="password" placeholder="Enter your password" required />
+                <Input id="password" type="password" placeholder="Enter your password" value={formData.password} onChange={handleChange} required disabled={isLoading} />
               </div>
-              <Button className="w-full bg-green-600 hover:bg-green-700">
-                Login
-              </Button>
+              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>{isLoading ? "Logging in..." : "Login"}</Button>
               <div className="text-center text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Don't have an account? </span>
-                <Link
-                  href="/register-business"
-                  className="text-green-600 dark:text-green-500 hover:underline font-medium"
-                >
-                  Sign Up
-                </Link>
+                <Link href="/register-business" className="text-green-600 dark:text-green-500 hover:underline font-medium">Sign Up</Link>
               </div>
             </div>
           </div>
-        </div>
+        </form>
 
         <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
           <p>
             By continuing, you agree to our{" "}
-            <Link href="/terms" className="text-green-600 dark:text-green-500 hover:underline">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" className="text-green-600 dark:text-green-500 hover:underline">
-              Privacy Policy
-            </Link>
-            .
+            <Link href="/terms" className="text-green-600 dark:text-green-500 hover:underline">Terms of Service</Link>{" "}and{" "}
+            <Link href="/privacy" className="text-green-600 dark:text-green-500 hover:underline">Privacy Policy</Link>.
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
-// API Placeholder Hooks for Backend Integration
-// Replace these with actual API calls when backend is ready
-
+// API Hooks for Backend Integration
 import { useState, useEffect } from 'react'
+import { SearchService } from '@/services/api'
+import type { CompanyList } from '@/types/api'
 
 // Types
 export interface Business {
@@ -41,15 +41,8 @@ export function useGoogleAuth() {
 
         try {
             // TODO: Replace with actual Google OAuth flow
-            // Example: const response = await fetch('/api/auth/google')
             console.log('🔐 Google OAuth - Ready for backend integration')
-
-            // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1000))
-
-            // TODO: Handle OAuth redirect or popup
-            // window.location.href = '/api/auth/google'
-
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Authentication failed')
         } finally {
@@ -74,15 +67,8 @@ export function useTelegramAuth() {
 
         try {
             // TODO: Replace with actual Telegram OAuth flow
-            // Example: const response = await fetch('/api/auth/telegram')
             console.log('🔐 Telegram OAuth - Ready for backend integration')
-
-            // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1000))
-
-            // TODO: Handle OAuth redirect
-            // window.location.href = '/api/auth/telegram'
-
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Authentication failed')
         } finally {
@@ -93,46 +79,17 @@ export function useTelegramAuth() {
     return { signInWithTelegram, isLoading, error }
 }
 
-/**
- * Hook to get current user session
- * TODO: Connect to your backend session endpoint
- */
-export function useAuth() {
-    const [user, setUser] = useState<User | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
-
-    useEffect(() => {
-        // TODO: Fetch current user from backend
-        // Example: fetch('/api/auth/session').then(res => res.json()).then(setUser)
-
-        // Mock user for development
-        setTimeout(() => {
-            setUser(null) // Set to null until backend is ready
-            setIsLoading(false)
-        }, 500)
-    }, [])
-
-    const signOut = async () => {
-        // TODO: Call backend logout endpoint
-        // await fetch('/api/auth/logout', { method: 'POST' })
-        setUser(null)
-    }
-
-    return { user, isLoading, signOut }
-}
-
 // ==================== BUSINESS DATA HOOKS ====================
 
 /**
  * Hook to fetch businesses with optional filters
- * TODO: Connect to your backend API endpoint
+ * Connected to backend API
  */
 export function useBusinesses(filters?: {
     category?: string
     location?: string
     search?: string
     page?: number
-    limit?: number
 }) {
     const [businesses, setBusinesses] = useState<Business[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -144,67 +101,30 @@ export function useBusinesses(filters?: {
             setError(null)
 
             try {
-                // TODO: Replace with actual API call
-                // const response = await fetch(`/api/businesses?${new URLSearchParams(filters)}`)
-                // const data = await response.json()
-                // setBusinesses(data.businesses)
+                const response = await SearchService.searchCompanies({
+                    search: filters?.search,
+                    page: filters?.page || 1,
+                })
 
-                console.log('📊 Fetching businesses with filters:', filters)
+                // Transform API response to match Business interface
+                const transformedBusinesses: Business[] = response.results.map((company: CompanyList) => ({
+                    id: company.id,
+                    name: company.name,
+                    category: company.category_names || 'Uncategorized',
+                    location: 'Ethiopia', // TODO: Add location field to API
+                    rating: company.misikir_score || 0,
+                    reviews: company.misikir_reviews_count || 0,
+                    views: 0, // TODO: Add views field to API
+                    image: company.logo_url || '/placeholder.svg?height=80&width=80',
+                    description: company.description || undefined,
+                }))
 
-                // Mock data for now
-                const mockBusinesses: Business[] = [
-                    {
-                        id: 1,
-                        name: "Abyssinia Coffee",
-                        category: "Food & Beverage",
-                        location: "Addis Ababa",
-                        rating: 4.8,
-                        reviews: 124,
-                        views: 3450,
-                        image: "/placeholder.svg?height=80&width=80",
-                        duration: "5 years",
-                    },
-                    {
-                        id: 2,
-                        name: "Ethio Telecom",
-                        category: "Telecommunications",
-                        location: "Nationwide",
-                        rating: 4.2,
-                        reviews: 532,
-                        views: 12450,
-                        image: "/placeholder.svg?height=80&width=80",
-                        duration: "15 years",
-                    },
-                    {
-                        id: 3,
-                        name: "Dashen Bank",
-                        category: "Financial Services",
-                        location: "Multiple Locations",
-                        rating: 4.5,
-                        reviews: 321,
-                        views: 8760,
-                        image: "/placeholder.svg?height=80&width=80",
-                        duration: "8 years",
-                    },
-                    {
-                        id: 4,
-                        name: "Sheger Real Estate",
-                        category: "Real Estate",
-                        location: "Addis Ababa",
-                        rating: 4.7,
-                        reviews: 98,
-                        views: 2340,
-                        image: "/placeholder.svg?height=80&width=80",
-                        duration: "3 years",
-                    },
-                ]
-
-                // Simulate API delay
-                await new Promise(resolve => setTimeout(resolve, 800))
-                setBusinesses(mockBusinesses)
-
+                setBusinesses(transformedBusinesses)
             } catch (err) {
+                console.error('Error fetching businesses:', err)
                 setError(err instanceof Error ? err.message : 'Failed to fetch businesses')
+                // Set empty array on error
+                setBusinesses([])
             } finally {
                 setIsLoading(false)
             }
@@ -218,7 +138,7 @@ export function useBusinesses(filters?: {
 
 /**
  * Hook to search businesses
- * TODO: Connect to your backend search endpoint
+ * Connected to backend API
  */
 export function useBusinessSearch(query: string) {
     const [results, setResults] = useState<Business[]>([])
@@ -234,19 +154,24 @@ export function useBusinessSearch(query: string) {
             setIsLoading(true)
 
             try {
-                // TODO: Replace with actual search API
-                // const response = await fetch(`/api/businesses/search?q=${encodeURIComponent(query)}`)
-                // const data = await response.json()
-                // setResults(data.results)
+                const response = await SearchService.searchCompanies({ search: query })
+                
+                const transformedResults: Business[] = response.results.map((company: CompanyList) => ({
+                    id: company.id,
+                    name: company.name,
+                    category: company.category_names || 'Uncategorized',
+                    location: 'Ethiopia',
+                    rating: company.misikir_score || 0,
+                    reviews: company.misikir_reviews_count || 0,
+                    views: 0,
+                    image: company.logo_url || '/placeholder.svg?height=80&width=80',
+                    description: company.description || undefined,
+                }))
 
-                console.log('🔍 Searching for:', query)
-
-                // Mock search results
-                await new Promise(resolve => setTimeout(resolve, 500))
-                setResults([])
-
+                setResults(transformedResults)
             } catch (err) {
                 console.error('Search error:', err)
+                setResults([])
             } finally {
                 setIsLoading(false)
             }
