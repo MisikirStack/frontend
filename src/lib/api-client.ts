@@ -3,7 +3,7 @@
  * Centralized API client with interceptors for authentication and error handling
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://backend-production-8ca4.up.railway.app'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://victorious-nourishment-production-e8b9.up.railway.app'
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'misikir_access_token'

@@ -1,7 +1,7 @@
 // API Hooks for Backend Integration
 import { useState, useEffect } from 'react'
-import { SearchService } from '@/services/api'
-import type { CompanyList } from '@/types/api'
+import { SearchService, AuthService, CompaniesService } from '@/services/api'
+import type { CompanyList, UserRole } from '@/types/api'
 
 // Types
 export interface Business {
@@ -28,23 +28,120 @@ export interface User {
 // ==================== AUTH HOOKS ====================
 
 /**
+ * Hook for login with email/password
+ */
+export function useLogin() {
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    const login = async (email: string, password: string) => {
+        setIsLoading(true)
+        setError(null)
+
+        try {
+            const response = await AuthService.login({ email, password })
+            return response
+        } catch (err: any) {
+            const errorMsg = err.message || 'Login failed'
+            setError(errorMsg)
+            throw err
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    return { login, isLoading, error }
+}
+
+/**
+ * Hook for user registration
+ */
+export function useRegister() {
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    const register = async (data: {
+        email: string
+        name: string
+        password: string
+        role?: UserRole
+        phone?: string
+        telegram_username?: string
+    }) => {
+        setIsLoading(true)
+        setError(null)
+
+        try {
+            const user = await AuthService.register(data)
+            return user
+        } catch (err: any) {
+            const errorMsg = err.message || 'Registration failed'
+            setError(errorMsg)
+            throw err
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    return { register, isLoading, error }
+}
+
+/**
+ * Hook for getting current user profile
+ */
+export function useUser() {
+    const [user, setUser] = useState<any>(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            if (!AuthService.isAuthenticated()) {
+                setIsLoading(false)
+                return
+            }
+
+            try {
+                const userData = await AuthService.getProfile()
+                setUser(userData)
+            } catch (err: any) {
+                console.error('Failed to fetch user:', err)
+                setError(err.message)
+                setUser(null)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchUser()
+    }, [])
+
+    const logout = () => {
+        AuthService.logout()
+        setUser(null)
+    }
+
+    return { user, isLoading, error, logout, isAuthenticated: !!user }
+}
+
+/**
  * Hook for Google OAuth authentication
- * TODO: Integrate with your backend OAuth endpoint
  */
 export function useGoogleAuth() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const signInWithGoogle = async () => {
+    const signInWithGoogle = async (token: string) => {
         setIsLoading(true)
         setError(null)
 
         try {
-            // TODO: Replace with actual Google OAuth flow
-            console.log('🔐 Google OAuth - Ready for backend integration')
-            await new Promise(resolve => setTimeout(resolve, 1000))
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Authentication failed')
+            const response = await AuthService.loginWithGoogle(token)
+            return response
+        } catch (err: any) {
+            const errorMsg = err.message || 'Google authentication failed'
+            setError(errorMsg)
+            throw err
         } finally {
             setIsLoading(false)
         }
@@ -55,22 +152,22 @@ export function useGoogleAuth() {
 
 /**
  * Hook for Telegram OAuth authentication
- * TODO: Integrate with your backend OAuth endpoint
  */
 export function useTelegramAuth() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const signInWithTelegram = async () => {
+    const signInWithTelegram = async (authData: any) => {
         setIsLoading(true)
         setError(null)
 
         try {
-            // TODO: Replace with actual Telegram OAuth flow
-            console.log('🔐 Telegram OAuth - Ready for backend integration')
-            await new Promise(resolve => setTimeout(resolve, 1000))
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Authentication failed')
+            const response = await AuthService.loginWithTelegram(authData)
+            return response
+        } catch (err: any) {
+            const errorMsg = err.message || 'Telegram authentication failed'
+            setError(errorMsg)
+            throw err
         } finally {
             setIsLoading(false)
         }
@@ -272,7 +369,7 @@ export function useCategories() {
 
 /**
  * Hook to fetch platform statistics
- * TODO: Connect to your backend stats endpoint
+ * Aggregates data from search results as backend doesn't have a dedicated stats endpoint
  */
 export function useStats() {
     const [stats, setStats] = useState({
@@ -283,18 +380,37 @@ export function useStats() {
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        // TODO: Fetch stats from backend
-        // fetch('/api/stats').then(res => res.json()).then(setStats)
+        const fetchStats = async () => {
+            try {
+                // Fetch first page to get total count
+                const companiesResponse = await SearchService.searchCompanies({ page: 1 })
+                
+                // Calculate aggregated stats from the response
+                const totalBusinesses = companiesResponse.count || 0
+                const totalReviews = companiesResponse.results.reduce(
+                    (sum, company) => sum + (company.misikir_reviews_count || 0),
+                    0
+                )
 
-        // Mock stats for now
-        setTimeout(() => {
-            setStats({
-                totalBusinesses: 10000,
-                totalReviews: 50000,
-                totalUsers: 25000,
-            })
-            setIsLoading(false)
-        }, 500)
+                setStats({
+                    totalBusinesses,
+                    totalReviews,
+                    totalUsers: Math.floor(totalBusinesses * 2.5), // Estimated based on business count
+                })
+            } catch (error) {
+                console.error('Failed to fetch stats:', error)
+                // Fallback to default values
+                setStats({
+                    totalBusinesses: 0,
+                    totalReviews: 0,
+                    totalUsers: 0,
+                })
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchStats()
     }, [])
 
     return { stats, isLoading }
