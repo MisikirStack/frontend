@@ -201,6 +201,8 @@ export function useBusinesses(filters?: {
                 const response = await SearchService.searchCompanies({
                     search: filters?.search,
                     page: filters?.page || 1,
+                    // Note: Backend might not support category/location filters by name yet
+                    // May need to convert these to IDs or update backend API
                 })
 
                 // Transform API response to match Business interface
@@ -216,7 +218,22 @@ export function useBusinesses(filters?: {
                     description: company.description || undefined,
                 }))
 
-                setBusinesses(transformedBusinesses)
+                // Client-side filtering for category and location (temporary until backend supports it)
+                let filteredBusinesses = transformedBusinesses;
+                
+                if (filters?.category) {
+                    filteredBusinesses = filteredBusinesses.filter(business => 
+                        business.category.toLowerCase().includes(filters.category!.toLowerCase())
+                    );
+                }
+                
+                if (filters?.location) {
+                    filteredBusinesses = filteredBusinesses.filter(business => 
+                        business.location.toLowerCase().includes(filters.location!.toLowerCase())
+                    );
+                }
+
+                setBusinesses(filteredBusinesses)
             } catch (err) {
                 console.error('Error fetching businesses:', err)
                 setError(err instanceof Error ? err.message : 'Failed to fetch businesses')
@@ -384,7 +401,7 @@ export function useStats() {
             try {
                 // Fetch first page to get total count
                 const companiesResponse = await SearchService.searchCompanies({ page: 1 })
-                
+
                 // Calculate aggregated stats from the response
                 const totalBusinesses = companiesResponse.count || 0
                 const totalReviews = companiesResponse.results.reduce(

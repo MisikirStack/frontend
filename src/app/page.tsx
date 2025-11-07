@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Navbar } from "@/components/navbar";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useBusinesses, useStats, useFavorites } from "@/hooks/use-api";
@@ -29,18 +29,16 @@ export default function Home() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [selectedLocation, setSelectedLocation] = useState<string | undefined>();
 
   // Use API hooks (backend-ready)
-  const { businesses, isLoading } = useBusinesses({ category: selectedCategory, search: searchQuery });
+  const { businesses, isLoading } = useBusinesses({ 
+    category: selectedCategory, 
+    search: searchQuery,
+    location: selectedLocation 
+  });
   const { stats } = useStats();
   const { toggleFavorite, isFavorite } = useFavorites();
-
-  const handleClick = () => {
-    window.open(
-      "https://docs.google.com/forms/d/1r04BOtkIROzUvmIM6PNXuP1NSeJoc0s05HrIT2C7qCU/edit",
-      "_blank"
-    );
-  };
 
   // Mock data for top businesses
   const topBusinesses = [
@@ -114,95 +112,15 @@ export default function Home() {
     },
   ];
 
-  // Categories for the dropdown
-  const categories = [
-    "Food & Beverage",
-    "Retail",
-    "Healthcare",
-    "Education",
-    "Technology",
-    "Financial Services",
-    "Transportation",
-    "Real Estate",
-    "Manufacturing",
-    "Entertainment",
-  ];
-
   return (
     <div className="flex min-h-screen flex-col transition-colors duration-300">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-              <Star className="h-6 w-6 text-yellow-500 animate-pulse" />
-              <span className="ml-2 text-xl font-bold text-green-700 dark:text-green-500">
-                Misikir
-              </span>
-            </Link>
-          </div>
-          <nav className="hidden md:flex md:items-center md:gap-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-1">
-                  Categories <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {categories.map((category) => (
-                  <DropdownMenuItem
-                    onClick={() => setSelectedCategory(category)}
-                    key={category}
-                    className="cursor-pointer"
-                  >
-                    {category}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              onClick={handleClick}
-              variant="ghost"
-              className="flex items-center gap-1"
-            >
-              <MapPin className="h-4 w-4" /> Location
-            </Button>
-            <ThemeToggle />
-            <Button onClick={() => router.push("/login")} variant="outline">
-              Login
-            </Button>
-            <Button
-              onClick={() => router.push("/register-business")}
-              className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
-            >
-              Register Your Business
-            </Button>
-          </nav>
-
-          <div className="flex items-center gap-2 md:hidden">
-            <ThemeToggle />
-            <Button variant="ghost" size="icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-6 w-6"
-              >
-                <line x1="4" x2="20" y1="12" y2="12" />
-                <line x1="4" x2="20" y1="6" y2="6" />
-                <line x1="4" x2="20" y1="18" y2="18" />
-              </svg>
-              <span className="sr-only">Toggle Menu</span>
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Navbar with Backend Integration */}
+      <Navbar 
+        onCategorySelect={setSelectedCategory}
+        selectedCategory={selectedCategory}
+        onLocationSelect={setSelectedLocation}
+        selectedLocation={selectedLocation}
+      />
 
       <main className="flex-1">
         {/* Hero Section with Search */}
@@ -253,23 +171,17 @@ export default function Home() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={handleClick}>
-                          Category
+                        <DropdownMenuItem disabled>
+                          Category (use navbar)
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleClick}>
-                          Subcategory
+                        <DropdownMenuItem disabled>
+                          Location (coming soon)
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleClick}>
-                          Location
+                        <DropdownMenuItem disabled>
+                          Rating (coming soon)
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleClick}>
-                          Rating
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleClick}>
-                          Number of Reviews
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleClick}>
-                          Number of Views
+                        <DropdownMenuItem disabled>
+                          Number of Reviews (coming soon)
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -336,16 +248,44 @@ export default function Home() {
         <section className="py-12">
           <div className="container px-4 md:px-6">
             <h2 className="mb-8 text-center text-2xl font-bold md:text-3xl animate-fade-in">
-              Top Rated Businesses
+              {selectedCategory || selectedLocation 
+                ? `${selectedCategory ? selectedCategory : ""} ${selectedCategory && selectedLocation ? "in" : ""} ${selectedLocation ? selectedLocation : ""} Businesses`.trim()
+                : "Top Rated Businesses"}
             </h2>
-            <Tabs onClick={handleClick} defaultValue="all" className="mb-8">
-              <TabsList className="mx-auto grid max-w-md grid-cols-4">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="services">Services</TabsTrigger>
-                <TabsTrigger value="retail">Retail</TabsTrigger>
-                <TabsTrigger value="food">Food</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {(selectedCategory || selectedLocation) && (
+              <div className="mb-6 text-center flex gap-2 justify-center flex-wrap">
+                {selectedCategory && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setSelectedCategory(undefined)}
+                    className="mb-2"
+                  >
+                    Clear Category Filter
+                  </Button>
+                )}
+                {selectedLocation && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setSelectedLocation(undefined)}
+                    className="mb-2"
+                  >
+                    Clear Location Filter
+                  </Button>
+                )}
+                {selectedCategory && selectedLocation && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSelectedCategory(undefined);
+                      setSelectedLocation(undefined);
+                    }}
+                    className="mb-2"
+                  >
+                    Clear All Filters
+                  </Button>
+                )}
+              </div>
+            )}
 
             {/* Loading State */}
             {isLoading ? (
