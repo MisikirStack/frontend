@@ -32,10 +32,10 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<string | undefined>();
 
   // Use API hooks (backend-ready)
-  const { businesses, isLoading } = useBusinesses({ 
-    category: selectedCategory, 
+  const { businesses, isLoading } = useBusinesses({
+    category: selectedCategory,
     search: searchQuery,
-    location: selectedLocation 
+    location: selectedLocation
   });
   const { stats } = useStats();
   const { toggleFavorite, isFavorite } = useFavorites();
@@ -115,7 +115,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col transition-colors duration-300">
       {/* Navbar with Backend Integration */}
-      <Navbar 
+      <Navbar
         onCategorySelect={setSelectedCategory}
         selectedCategory={selectedCategory}
         onLocationSelect={setSelectedLocation}
@@ -248,15 +248,15 @@ export default function Home() {
         <section className="py-12">
           <div className="container px-4 md:px-6">
             <h2 className="mb-8 text-center text-2xl font-bold md:text-3xl animate-fade-in">
-              {selectedCategory || selectedLocation 
+              {selectedCategory || selectedLocation
                 ? `${selectedCategory ? selectedCategory : ""} ${selectedCategory && selectedLocation ? "in" : ""} ${selectedLocation ? selectedLocation : ""} Businesses`.trim()
                 : "Top Rated Businesses"}
             </h2>
             {(selectedCategory || selectedLocation) && (
               <div className="mb-6 text-center flex gap-2 justify-center flex-wrap">
                 {selectedCategory && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setSelectedCategory(undefined)}
                     className="mb-2"
                   >
@@ -264,8 +264,8 @@ export default function Home() {
                   </Button>
                 )}
                 {selectedLocation && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setSelectedLocation(undefined)}
                     className="mb-2"
                   >
@@ -273,8 +273,8 @@ export default function Home() {
                   </Button>
                 )}
                 {selectedCategory && selectedLocation && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setSelectedCategory(undefined);
                       setSelectedLocation(undefined);

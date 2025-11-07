@@ -220,15 +220,15 @@ export function useBusinesses(filters?: {
 
                 // Client-side filtering for category and location (temporary until backend supports it)
                 let filteredBusinesses = transformedBusinesses;
-                
+
                 if (filters?.category) {
-                    filteredBusinesses = filteredBusinesses.filter(business => 
+                    filteredBusinesses = filteredBusinesses.filter(business =>
                         business.category.toLowerCase().includes(filters.category!.toLowerCase())
                     );
                 }
-                
+
                 if (filters?.location) {
-                    filteredBusinesses = filteredBusinesses.filter(business => 
+                    filteredBusinesses = filteredBusinesses.filter(business =>
                         business.location.toLowerCase().includes(filters.location!.toLowerCase())
                     );
                 }
