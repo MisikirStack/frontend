@@ -13,6 +13,7 @@ import {
     Building2,
     Menu,
     X,
+    Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageToggle } from "@/components/language-toggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategories } from "@/hooks/use-api";
 
@@ -189,6 +191,25 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                         </DropdownMenuContent>
                     </DropdownMenu>
 
+                    {/* Write a Review Button */}
+                    <Button
+                        onClick={() => {
+                            if (isAuthenticated) {
+                                router.push("/write-review");
+                            } else {
+                                router.push("/login");
+                            }
+                        }}
+                        variant="outline"
+                        className="border-yellow-600 text-yellow-600 hover:bg-yellow-50 dark:border-yellow-500 dark:text-yellow-500 dark:hover:bg-yellow-950/20"
+                    >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Write a Review
+                    </Button>
+
+                    {/* Language Toggle */}
+                    <LanguageToggle />
+
                     {/* Theme Toggle */}
                     <ThemeToggle />
 
@@ -284,6 +305,7 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
 
                 {/* Mobile Menu Button */}
                 <div className="flex items-center gap-2 md:hidden">
+                    <LanguageToggle />
                     <ThemeToggle />
                     <Button
                         variant="ghost"
@@ -368,6 +390,25 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                         </div>
 
                         <div className="border-t pt-3">
+                            {/* Write a Review Button */}
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start border-yellow-600 text-yellow-600 hover:bg-yellow-50 dark:border-yellow-500 dark:text-yellow-500 dark:hover:bg-yellow-950/20"
+                                onClick={() => {
+                                    if (isAuthenticated) {
+                                        router.push("/write-review");
+                                    } else {
+                                        router.push("/login");
+                                    }
+                                    setMobileMenuOpen(false);
+                                }}
+                            >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Write a Review
+                            </Button>
+                        </div>
+
+                        <div className="border-t pt-3 mt-3">
 
                             {/* Auth Section */}
                             {isAuthenticated && user ? (

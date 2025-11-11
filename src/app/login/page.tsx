@@ -110,20 +110,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="container flex h-screen w-full flex-col items-center justify-center">
+    <div className="container flex h-screen w-full flex-col items-center justify-center bg-background">
       <Link href="/" className="mb-8 flex items-center">
         <Star className="h-8 w-8 text-yellow-500" />
-        <span className="ml-2 text-2xl font-bold text-green-700 dark:text-green-500">Misikir</span>
+        <span className="ml-2 text-2xl font-bold text-green-700 dark:text-green-400">Misikir</span>
       </Link>
 
-      <div className="mx-auto w-full max-w-md space-y-6 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-lg">
+      <div className="mx-auto w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-6 shadow-lg">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                className="w-full h-12"
                 onClick={handleGoogleLogin}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -148,7 +148,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                className="w-full h-12"
                 onClick={handleTelegramLogin}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
@@ -166,20 +166,20 @@ export default function LoginPage() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t dark:border-gray-700" />
+                <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">or</span>
+                <span className="bg-card px-2 text-muted-foreground">or</span>
               </div>
             </div>
 
             <div className="space-y-2 text-center">
-              <h1 className="text-2xl font-bold dark:text-white">Welcome back</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Enter your credentials to access your account</p>
+              <h1 className="text-2xl font-bold">Welcome back</h1>
+              <p className="text-sm text-muted-foreground">Enter your credentials to access your account</p>
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
+              <div className="rounded-md bg-red-50 dark:bg-red-950/50 p-3 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900">{error}</div>
             )}
 
             <div className="space-y-4">
@@ -190,24 +190,24 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="#" className="text-xs text-green-600 dark:text-green-500 hover:underline">Forgot password?</Link>
+                  <Link href="#" className="text-xs text-green-600 dark:text-green-400 hover:underline">Forgot password?</Link>
                 </div>
                 <Input id="password" type="password" placeholder="Enter your password" value={formData.password} onChange={handleChange} required disabled={isLoading} />
               </div>
-              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>{isLoading ? "Logging in..." : "Login"}</Button>
+              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600" disabled={isLoading}>{isLoading ? "Logging in..." : "Login"}</Button>
               <div className="text-center text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Don't have an account? </span>
-                <Link href="/register-business" className="text-green-600 dark:text-green-500 hover:underline font-medium">Sign Up</Link>
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <Link href="/register-business" className="text-green-600 dark:text-green-400 hover:underline font-medium">Sign Up</Link>
               </div>
             </div>
           </div>
         </form>
 
-        <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="mt-4 text-center text-sm text-muted-foreground">
           <p>
             By continuing, you agree to our{" "}
-            <Link href="/terms" className="text-green-600 dark:text-green-500 hover:underline">Terms of Service</Link>{" "}and{" "}
-            <Link href="/privacy" className="text-green-600 dark:text-green-500 hover:underline">Privacy Policy</Link>.
+            <Link href="/terms" className="text-green-600 dark:text-green-400 hover:underline">Terms of Service</Link>{" "}and{" "}
+            <Link href="/privacy" className="text-green-600 dark:text-green-400 hover:underline">Privacy Policy</Link>.
           </p>
         </div>
       </div>

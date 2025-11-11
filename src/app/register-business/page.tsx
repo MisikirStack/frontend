@@ -103,15 +103,15 @@ export default function RegisterBusinessPage() {
   };
 
   return (
-    <div className="container flex min-h-screen w-full flex-col items-center justify-center py-8">
+    <div className="container flex min-h-screen w-full flex-col items-center justify-center py-8 bg-background">
       <Link href="/" className="mb-8 flex items-center">
         <Star className="h-8 w-8 text-yellow-500" />
-        <span className="ml-2 text-2xl font-bold text-green-700 dark:text-green-500">
+        <span className="ml-2 text-2xl font-bold text-green-700 dark:text-green-400">
           Misikir
         </span>
       </Link>
 
-      <div className="mx-auto w-full max-w-md space-y-6 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-lg">
+      <div className="mx-auto w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-6 shadow-lg">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             {/* OAuth Buttons */}
@@ -119,7 +119,7 @@ export default function RegisterBusinessPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                className="w-full h-12"
                 onClick={handleGoogleRegister}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@ export default function RegisterBusinessPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                className="w-full h-12"
                 onClick={handleTelegramRegister}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
@@ -175,24 +175,24 @@ export default function RegisterBusinessPage() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t dark:border-gray-700" />
+                <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">
+                <span className="bg-card px-2 text-muted-foreground">
                   or
                 </span>
               </div>
             </div>
 
             <div className="space-y-2 text-center">
-              <h1 className="text-2xl font-bold dark:text-white">Create an account</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <h1 className="text-2xl font-bold">Create an account</h1>
+              <p className="text-sm text-muted-foreground">
                 Enter your details to create your account
               </p>
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+              <div className="rounded-md bg-red-50 dark:bg-red-950/50 p-3 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900">
                 {error}
               </div>
             )}
@@ -259,18 +259,18 @@ export default function RegisterBusinessPage() {
               </div>
               <Button
                 type="submit"
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
                 disabled={isLoading}
               >
                 {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
               <div className="text-center text-sm">
-                <span className="text-gray-500 dark:text-gray-400">
+                <span className="text-muted-foreground">
                   Already have an account?{" "}
                 </span>
                 <Link
                   href="/login"
-                  className="text-green-600 dark:text-green-500 hover:underline font-medium"
+                  className="text-green-600 dark:text-green-400 hover:underline font-medium"
                 >
                   Log In
                 </Link>
@@ -279,14 +279,14 @@ export default function RegisterBusinessPage() {
           </div>
         </form>
 
-        <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="mt-4 text-center text-sm text-muted-foreground">
           <p>
             By continuing, you agree to our{" "}
-            <Link href="/terms" className="text-green-600 dark:text-green-500 hover:underline">
+            <Link href="/terms" className="text-green-600 dark:text-green-400 hover:underline">
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="text-green-600 dark:text-green-500 hover:underline">
+            <Link href="/privacy" className="text-green-600 dark:text-green-400 hover:underline">
               Privacy Policy
             </Link>
             .

@@ -44,6 +44,13 @@ export class CompaniesService {
     }
 
     /**
+     * Delete company
+     */
+    static async deleteCompany(id: number): Promise<void> {
+        await apiClient.delete(`/api/companies/${id}/`, true);
+    }
+
+    /**
      * Get company statistics
      */
     static async getCompanyStats(id: number): Promise<{

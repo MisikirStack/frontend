@@ -9,7 +9,12 @@ export class ReviewsService {
     /**
      * Create a new review
      */
-    static async createReview(data: FormData): Promise<Review> {
+    static async createReview(data: {
+        company: number;
+        rating: number;
+        content: string;
+        title?: string;
+    }): Promise<Review> {
         return await apiClient.post<Review>("/api/reviews/create/", data, true);
     }
 
@@ -35,7 +40,16 @@ export class ReviewsService {
     /**
      * Update review
      */
-    static async updateReview(id: number, data: FormData): Promise<Review> {
+    static async updateReview(id: number, data: Partial<{
+        company: number;
+        review_text: string;
+        time: number;
+        quality: number;
+        quantity: number;
+        trust: number;
+        honesty: number;
+        service: number;
+    }>): Promise<Review> {
         return await apiClient.put<Review>(`/api/reviews/${id}/update/`, data, true);
     }
 

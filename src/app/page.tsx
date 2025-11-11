@@ -159,21 +159,21 @@ export default function Home() {
                       <div className="rounded-full bg-green-100 dark:bg-green-900/20 p-3">
                         <Building2 className="h-6 w-6 text-green-600 dark:text-green-500" />
                       </div>
-                      <div className="text-3xl font-bold text-green-700 dark:text-green-500">{stats.totalBusinesses.toLocaleString()}+</div>
+                      <div className="text-xl md:text-3xl font-bold text-green-700 dark:text-green-500">{stats.totalBusinesses.toLocaleString()}+</div>
                       <div className="text-sm text-muted-foreground">Businesses Listed</div>
                     </div>
                     <div className="flex flex-col items-center text-center space-y-2">
                       <div className="rounded-full bg-yellow-100 dark:bg-yellow-900/20 p-3">
                         <Star className="h-6 w-6 text-yellow-600 dark:text-yellow-500" />
                       </div>
-                      <div className="text-3xl font-bold text-yellow-700 dark:text-yellow-500">{stats.totalReviews.toLocaleString()}+</div>
+                      <div className="text-xl md:text-3xl font-bold text-yellow-700 dark:text-yellow-500">{stats.totalReviews.toLocaleString()}+</div>
                       <div className="text-sm text-muted-foreground">Reviews Posted</div>
                     </div>
                     <div className="flex flex-col items-center text-center space-y-2">
                       <div className="rounded-full bg-blue-100 dark:bg-blue-900/20 p-3">
                         <Users className="h-6 w-6 text-blue-600 dark:text-blue-500" />
                       </div>
-                      <div className="text-3xl font-bold text-blue-700 dark:text-blue-500">{stats.totalUsers.toLocaleString()}+</div>
+                      <div className="text-xl md:text-3xl font-bold text-blue-700 dark:text-blue-500">{stats.totalUsers.toLocaleString()}+</div>
                       <div className="text-sm text-muted-foreground">Active Users</div>
                     </div>
                   </>
