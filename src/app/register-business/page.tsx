@@ -9,6 +9,9 @@ import { Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api-client";
+import { toast } from "sonner";
+import { UserRole } from "@/types/api";
+import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 
 export default function RegisterBusinessPage() {
   const router = useRouter();
@@ -47,27 +50,45 @@ export default function RegisterBusinessPage() {
       return;
     }
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long");
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      await register({
+      const registrationData = {
         email: formData.email,
         password: formData.password,
         name: formData.name,
         phone: formData.phone || undefined,
+        role: UserRole.USER, // Default role for new users
+      };
+      
+      await register(registrationData);
+
+      toast.success("Account created successfully!", {
+        description: "Please login to continue.",
       });
 
-      router.push("/");
+      // Redirect to login page after successful registration
+      setTimeout(() => {
+        router.push("/login");
+      }, 1000);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message || "Registration failed. Please try again.");
+        const friendlyMessage = getUserFriendlyErrorMessage(err.message);
+        setError(friendlyMessage);
+        toast.error("Unable to create account", {
+          description: friendlyMessage,
+        });
       } else {
-        setError("An error occurred. Please try again.");
+        const friendlyMessage = "We couldn't create your account. Please try again.";
+        setError(friendlyMessage);
+        toast.error("Unable to create account", {
+          description: friendlyMessage,
+        });
       }
     } finally {
       setIsLoading(false);

@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, tokenManager } from '@/lib/api-client'
-import type { User, LoginRequest, RegisterRequest } from '@/types/api'
+import type { User, LoginRequest, RegisterRequest, LoginResponse } from '@/types/api'
 
 interface AuthContextType {
     user: User | null
@@ -62,14 +62,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = async (credentials: LoginRequest) => {
         try {
             const response = await apiClient.post<any>('/api/auth/login/', credentials)
-
-            // Store tokens
+            
+            // Backend returns: { user: {...}, tokens: { access: "...", refresh: "..." } }
+            if (response.tokens && response.tokens.access && response.tokens.refresh) {
+                // Store tokens
+                tokenManager.setTokens(response.tokens.access, response.tokens.refresh)
+                
+                // Set user from response
+                if (response.user) {
+                    setUser(response.user)
+                }
+                
+                return
+            }
+            
+            // Fallback: Check for flat format { access, refresh, user }
             if (response.access && response.refresh) {
                 tokenManager.setTokens(response.access, response.refresh)
+                
+                if (response.user) {
+                    setUser(response.user)
+                } else {
+                    await fetchUserProfile()
+                }
+                return
             }
 
-            // Fetch user profile
-            await fetchUserProfile()
+            // If none of the formats match, throw error with details
+            throw new Error(`Invalid login response format. Received keys: ${Object.keys(response).join(', ')}`)
         } catch (error) {
             console.error('Login error:', error)
             throw error
@@ -83,13 +103,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const response = await apiClient.post<any>('/api/auth/register/', data)
 
-            // Store tokens if returned
-            if (response.access && response.refresh) {
-                tokenManager.setTokens(response.access, response.refresh)
+            // Backend returns: { user: {...}, tokens: { access: "...", refresh: "..." } }
+            if (response.tokens && response.tokens.access && response.tokens.refresh) {
+                tokenManager.setTokens(response.tokens.access, response.tokens.refresh)
+                
+                if (response.user) {
+                    setUser(response.user)
+                }
+                return
             }
 
-            // Fetch user profile
-            await fetchUserProfile()
+            // Fallback: Check for flat format
+            if (response.access && response.refresh) {
+                tokenManager.setTokens(response.access, response.refresh)
+                await fetchUserProfile()
+                return
+            }
+
+            throw new Error(`Invalid registration response format. Received keys: ${Object.keys(response).join(', ')}`)
         } catch (error) {
             console.error('Registration error:', error)
             throw error

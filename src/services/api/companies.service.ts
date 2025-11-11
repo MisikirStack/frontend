@@ -25,7 +25,7 @@ export class CompaniesService {
      * Get user's companies
      */
     static async getMyCompanies(): Promise<CompanyList[]> {
-        return await apiClient.get<CompanyList[]>("/api/companies/my-companies/");
+        return await apiClient.get<CompanyList[]>("/api/companies/my-companies/", true);
     }
 
     /**
@@ -59,7 +59,7 @@ export class CompaniesService {
      * Get company products
      */
     static async getCompanyProducts(companyId: number): Promise<Product[]> {
-        return await apiClient.get<Product[]>(`/api/companies/${companyId}/products/`);
+        return await apiClient.get<Product[]>(`/api/companies/${companyId}/products/`, true);
     }
 
     /**
@@ -91,7 +91,7 @@ export class CompaniesService {
      * Get company services
      */
     static async getCompanyServices(companyId: number): Promise<Service[]> {
-        return await apiClient.get<Service[]>(`/api/companies/${companyId}/services/`);
+        return await apiClient.get<Service[]>(`/api/companies/${companyId}/services/`, true);
     }
 
     /**

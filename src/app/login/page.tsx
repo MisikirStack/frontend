@@ -9,6 +9,9 @@ import { Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api-client";
+import { toast } from "sonner";
+import { CompaniesService } from "@/services/api/companies.service";
+import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,17 +43,59 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // Login and wait for tokens to be stored
       await login({
         email: formData.email,
         password: formData.password,
       });
 
-      router.push("/");
+      toast.success("Welcome back!", {
+        description: "You have successfully logged in.",
+      });
+
+      // Verify tokens are stored before proceeding
+      const hasTokens = typeof window !== 'undefined' && localStorage.getItem('misikir_access_token');
+      if (!hasTokens) {
+        throw new Error('Authentication failed: No tokens received');
+      }
+
+      // Check if user has a company
+      try {
+        const companies = await CompaniesService.getMyCompanies();
+        
+        if (companies && companies.length > 0) {
+          // User has company, redirect to company profile
+          router.push(`/business/${companies[0].id}`);
+        } else {
+          // No company, show prompt and redirect to create company
+          toast.info("Create your business profile", {
+            description: "Let's set up your business profile to get started.",
+            duration: 4000,
+          });
+          
+          setTimeout(() => {
+            router.push("/company/setup");
+          }, 1500);
+        }
+      } catch (companyError) {
+        // If there's an error fetching companies, just redirect to home silently
+        // This is not a critical error - user is logged in successfully
+        console.error("Error fetching companies:", companyError);
+        router.push("/");
+      }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message || "Invalid email or password");
+        const friendlyMessage = getUserFriendlyErrorMessage(err.message);
+        setError(friendlyMessage);
+        toast.error("Unable to log in", {
+          description: friendlyMessage,
+        });
       } else {
-        setError("An error occurred. Please try again.");
+        const friendlyMessage = "We couldn't log you in. Please try again.";
+        setError(friendlyMessage);
+        toast.error("Unable to log in", {
+          description: friendlyMessage,
+        });
       }
     } finally {
       setIsLoading(false);

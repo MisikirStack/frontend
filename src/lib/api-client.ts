@@ -230,14 +230,39 @@ class ApiClient {
 
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`
-            let errorData = null
+            let errorData: any = null
 
             if (isJson) {
                 try {
                     errorData = await response.json()
-                    errorMessage = errorData.detail || errorData.message || errorMessage
+                    // Only log in development
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log('API Error Response:', errorData)
+                    }
+                    
+                    // Handle different error response formats
+                    if (typeof errorData === 'string') {
+                        errorMessage = errorData
+                    } else if (errorData && typeof errorData === 'object') {
+                        if (errorData.detail) {
+                            errorMessage = errorData.detail
+                        } else if (errorData.message) {
+                            errorMessage = errorData.message
+                        } else if (errorData.error) {
+                            errorMessage = errorData.error
+                        } else {
+                            // Check for field-specific errors (e.g., { email: ["This field is required"] })
+                            const fieldErrors = Object.keys(errorData)
+                                .filter(key => Array.isArray(errorData[key]))
+                                .map(key => `${key}: ${errorData[key].join(', ')}`)
+                            
+                            if (fieldErrors.length > 0) {
+                                errorMessage = fieldErrors.join('; ')
+                            }
+                        }
+                    }
                 } catch (e) {
-                    // Failed to parse error JSON
+                    console.error('Failed to parse error JSON:', e)
                 }
             }
 
