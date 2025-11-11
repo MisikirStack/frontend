@@ -22,6 +22,17 @@ export class ReviewsService {
     }
 
     /**
+     * Get reviews for a specific company
+     * Note: Backend doesn't have a dedicated endpoint for this yet
+     * TODO: Add proper endpoint when available
+     */
+    static async getCompanyReviews(companyId: number): Promise<Review[]> {
+        // Placeholder: return empty array until backend adds the endpoint
+        // The proper endpoint would be: `/api/companies/${companyId}/reviews/`
+        return [];
+    }
+
+    /**
      * Update review
      */
     static async updateReview(id: number, data: FormData): Promise<Review> {

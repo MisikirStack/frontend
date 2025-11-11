@@ -76,6 +76,7 @@ export interface Company {
     id: number
     owner: number
     owner_name: string
+    owner_email?: string
     name: string
     description?: string | null
     logo?: string | null
@@ -232,37 +233,40 @@ export interface ServiceRequest {
 
 export interface Review {
     id: number
-    user: number
-    username: string
+    reviewer_name: string
+    misikir_score: number
+    review_text: string
+    time: number
+    quality: number
+    quantity: number
+    trust: number
+    honesty: number
+    service: number
+    created_at: string
+    updated_at: string
     company: number
-    company_name: string
-    rating: Rating
-    content: string
-    image?: string | null
-    date: string
-    helpful_count: number
-    not_helpful_count: number
+    reviewer: number
 }
 
 export interface ReviewList {
     id: number
-    username: string
+    reviewer_name: string
     company_name: string
-    rating: Rating
-    content: string
-    image?: string | null
-    image_url: string
-    date: string
-    helpful_count: number
-    not_helpful_count: number
+    misikir_score: number
+    review_text: string
+    created_at: string
 }
 
 export interface ReviewRequest {
-    user: number
+    reviewer: number
     company: number
-    rating: Rating
-    content: string
-    image?: File | null
+    review_text: string
+    time: number
+    quality: number
+    quantity: number
+    trust: number
+    honesty: number
+    service: number
 }
 
 // ==================== Search & Pagination ====================

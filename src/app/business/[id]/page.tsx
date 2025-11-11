@@ -1,19 +1,74 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Star, MapPin, Phone, Mail, Globe, Clock, ChevronLeft, Share2, ThumbsUp, MessageSquare } from "lucide-react"
+import { Star, MapPin, Phone, Mail, Globe, Clock, ChevronLeft, Share2, ThumbsUp, MessageSquare, Loader2 } from "lucide-react"
 import ReviewForm from "@/components/review-form"
+import { CompaniesService } from "@/services/api/companies.service"
+import { ReviewsService } from "@/services/api/reviews.service"
+import type { Company, Review, Product, Service } from "@/types/api"
+import { toast } from "sonner"
+import { getUserFriendlyErrorMessage } from "@/lib/error-messages"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function BusinessPage() {
-  const [showReviewForm, setShowReviewForm] = useState(false)
+  const params = useParams()
+  const router = useRouter()
+  const { user } = useAuth()
+  const companyId = parseInt(params.id as string)
 
-  // Mock business data
-  const business = {
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [business, setBusiness] = useState<Company | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [services, setServices] = useState<Service[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchBusinessData = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Fetch company details
+        const companyData = await CompaniesService.getCompanyById(companyId)
+        setBusiness(companyData)
+
+        // Fetch reviews, products, and services in parallel
+        const [reviewsData, productsData, servicesData] = await Promise.allSettled([
+          ReviewsService.getCompanyReviews(companyId).catch(() => []),
+          CompaniesService.getCompanyProducts(companyId).catch(() => []),
+          CompaniesService.getCompanyServices(companyId).catch(() => []),
+        ])
+
+        if (reviewsData.status === 'fulfilled') setReviews(reviewsData.value)
+        if (productsData.status === 'fulfilled') setProducts(productsData.value)
+        if (servicesData.status === 'fulfilled') setServices(servicesData.value)
+
+      } catch (err: any) {
+        const friendlyMessage = getUserFriendlyErrorMessage(err.message)
+        setError(friendlyMessage)
+        toast.error("Unable to load business", {
+          description: friendlyMessage,
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (companyId) {
+      fetchBusinessData()
+    }
+  }, [companyId])
+
+  // Mock data for fallback (keeping structure)
+  const mockBusiness = {
     id: 1,
     name: "Abyssinia Coffee",
     category: "Food, Beverages & Tobacco > Coffee & Tea",
@@ -21,7 +76,7 @@ export default function BusinessPage() {
     location: "Bole, Addis Ababa",
     address: "Bole Road, Near Friendship Building",
     rating: 8.4,
-    reviews: 124,
+    reviewCount: 124,
     views: 3450,
     image: "/placeholder.svg?height=200&width=200",
     coverImage: "/placeholder.svg?height=400&width=1200",
@@ -92,11 +147,6 @@ export default function BusinessPage() {
     ],
   }
 
-  const handleSubmitReview = (review: any) => {
-    console.log("Review submitted:", review)
-    // In a real app, this would send the review to the server
-  }
-
   const renderRatingLabel = (rating: number) => {
     if (rating === 0) return "Very Poor"
     if (rating <= 2) return "Poor"
@@ -107,42 +157,116 @@ export default function BusinessPage() {
     return "Excellent"
   }
 
+  const handleSubmitReview = async (reviewData: any) => {
+    try {
+      const formData = new FormData()
+      formData.append('company', companyId.toString())
+      formData.append('rating', reviewData.rating.toString())
+      formData.append('content', reviewData.comment)
+      formData.append('user', user?.email || '')
+
+      await ReviewsService.createReview(formData)
+
+      toast.success("Review submitted!", {
+        description: "Thank you for your feedback.",
+      })
+
+      setShowReviewForm(false)
+
+      // Refresh reviews
+      const updatedReviews = await ReviewsService.getCompanyReviews(companyId)
+      setReviews(updatedReviews)
+    } catch (err: any) {
+      const friendlyMessage = getUserFriendlyErrorMessage(err.message)
+      toast.error("Unable to submit review", {
+        description: friendlyMessage,
+      })
+    }
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-green-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading business information...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error || !business) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="mb-4 text-6xl">😕</div>
+          <h2 className="text-2xl font-bold mb-2">Business Not Found</h2>
+          <p className="text-gray-600 mb-6">{error || "The business you're looking for doesn't exist."}</p>
+          <Button onClick={() => router.push('/')} className="bg-green-600 hover:bg-green-700">
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-50 border-b bg-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <header className="sticky top-0 z-50 border-b bg-white dark:bg-gray-900 dark:border-gray-800">
         <div className="container flex h-16 items-center px-4 md:px-6">
           <Link href="/" className="flex items-center">
             <Star className="h-6 w-6 text-yellow-500" />
-            <span className="ml-2 text-xl font-bold text-green-700">Misikir</span>
+            <span className="ml-2 text-xl font-bold text-green-700 dark:text-green-500">Misikir</span>
           </Link>
           <div className="ml-auto flex items-center gap-4">
-            <Button variant="outline">Login</Button>
-            <Button className="bg-green-600 hover:bg-green-700">Register Your Business</Button>
+            {user ? (
+              <Button variant="outline" onClick={() => router.push('/company/setup')}>My Business</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => router.push('/login')}>Login</Button>
+                <Button className="bg-green-600 hover:bg-green-700" onClick={() => router.push('/register-business')}>Register Your Business</Button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main className="container py-8">
-        <Link href="/" className="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-green-600">
+        <Link href="/" className="mb-4 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-500">
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back to search results
         </Link>
 
         {/* Business Cover Image */}
-        <div className="relative mb-6 h-[200px] w-full overflow-hidden rounded-lg md:h-[300px]">
-          <Image src={business.coverImage || "/placeholder.svg"} alt={business.name} fill className="object-cover" />
+        <div className="relative mb-6 h-[200px] w-full overflow-hidden rounded-lg md:h-[300px] bg-gray-200 dark:bg-gray-800">
+          {business.logo ? (
+            <Image src={business.logo} alt={business.name} fill className="object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Star className="h-16 w-16 text-gray-400" />
+            </div>
+          )}
         </div>
 
         <div className="grid gap-8 md:grid-cols-3">
           {/* Business Info Column */}
           <div className="md:col-span-2">
-            <div className="mb-6 flex flex-col gap-4 rounded-lg border bg-white p-6 shadow-sm sm:flex-row sm:items-center">
-              <div className="relative h-24 w-24 overflow-hidden rounded-lg">
-                <Image src={business.image || "/placeholder.svg"} alt={business.name} fill className="object-cover" />
+            <div className="mb-6 flex flex-col gap-4 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm sm:flex-row sm:items-center">
+              <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800">
+                {business.logo ? (
+                  <Image src={business.logo} alt={business.name} fill className="object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <Star className="h-8 w-8 text-gray-400" />
+                  </div>
+                )}
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">{business.name}</h1>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">{business.name}</h1>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" className="h-8">
                       <Share2 className="mr-1 h-4 w-4" />
@@ -154,22 +278,22 @@ export default function BusinessPage() {
                     </Button>
                   </div>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
-                  <Badge variant="outline" className="bg-green-50">
-                    {business.category}
-                  </Badge>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
+                  {business.category_names && (
+                    <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">
+                      {business.category_names}
+                    </Badge>
+                  )}
                   <div className="flex items-center">
-                    <span className="font-medium">{business.rating}/10</span>
-                    <span className="ml-1">({business.reviews} reviews)</span>
-                    <span className="ml-1 text-xs">- {renderRatingLabel(business.rating)}</span>
+                    <span className="font-medium">{business.misikir_score}/10</span>
+                    <span className="ml-1">({business.misikir_reviews_count} reviews)</span>
+                    <span className="ml-1 text-xs">- {renderRatingLabel(business.misikir_score)}</span>
                   </div>
-                  <div className="flex items-center">
-                    <MapPin className="mr-1 h-4 w-4" />
-                    {business.location}
-                  </div>
-                  <div>
-                    <span className="font-medium">In service:</span> {business.duration}
-                  </div>
+                  {business.subcategory_names && (
+                    <div className="flex items-center">
+                      <span className="font-medium">Type:</span> {business.subcategory_names}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -182,94 +306,111 @@ export default function BusinessPage() {
                 <TabsTrigger value="photos">Photos</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="about" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-semibold">About {business.name}</h2>
-                <p className="mb-6 text-gray-700">{business.description}</p>
+              <TabsContent value="about" className="mt-6 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+                <h2 className="mb-4 text-xl font-semibold dark:text-white">About {business.name}</h2>
+                <p className="mb-6 text-gray-700 dark:text-gray-300">{business.description || 'No description available.'}</p>
 
-                <h3 className="mb-3 text-lg font-medium">Business Information</h3>
+                <h3 className="mb-3 text-lg font-medium dark:text-white">Business Information</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Address</p>
-                      <p className="text-sm text-gray-600">{business.address}</p>
+                  {business.owner_email && (
+                    <div className="flex items-start gap-2">
+                      <Mail className="mt-0.5 h-5 w-5 text-gray-500" />
+                      <div>
+                        <p className="font-medium dark:text-white">Contact Email</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{business.owner_email}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="flex items-start gap-2">
-                    <Phone className="mt-0.5 h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Phone</p>
-                      <p className="text-sm text-gray-600">{business.contact.phone}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Mail className="mt-0.5 h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Email</p>
-                      <p className="text-sm text-gray-600">{business.contact.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Globe className="mt-0.5 h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Website</p>
-                      <p className="text-sm text-gray-600">{business.contact.website}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 sm:col-span-2">
                     <Clock className="mt-0.5 h-5 w-5 text-gray-500" />
                     <div>
-                      <p className="font-medium">Business Hours</p>
-                      <p className="text-sm text-gray-600">{business.contact.hours}</p>
+                      <p className="font-medium dark:text-white">Established</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(business.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  {business.category_names && (
+                    <div className="flex items-start gap-2 sm:col-span-2">
+                      <Star className="mt-0.5 h-5 w-5 text-gray-500" />
+                      <div>
+                        <p className="font-medium dark:text-white">Categories</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{business.category_names}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <ThumbsUp className="mt-0.5 h-5 w-5 text-gray-500" />
+                    <div>
+                      <p className="font-medium dark:text-white">Misikir Score</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {business.misikir_score}/10 based on {business.misikir_reviews_count} reviews
+                      </p>
                     </div>
                   </div>
                 </div>
               </TabsContent>
 
-              <TabsContent value="services" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-semibold">Services Offered</h2>
-                <ul className="grid gap-3 sm:grid-cols-2">
-                  {business.services.map((service, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      </div>
-                      <span>{service}</span>
-                    </li>
-                  ))}
-                </ul>
+              <TabsContent value="services" className="mt-6 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+                <h2 className="mb-4 text-xl font-semibold dark:text-white">Services Offered</h2>
+                {services.length > 0 ? (
+                  <ul className="grid gap-3 sm:grid-cols-2">
+                    {services.map((service) => (
+                      <li key={service.id} className="flex items-start gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 mt-0.5">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                          >
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="font-medium dark:text-white">{service.name}</span>
+                          {service.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{service.description}</p>
+                          )}
+                          {service.price && (
+                            <p className="text-sm text-green-600 dark:text-green-400 mt-1">${service.price}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">No services listed yet.</p>
+                )}
               </TabsContent>
 
               <TabsContent value="reviews" className="mt-6 space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold">Customer Reviews</h2>
+                  <h2 className="text-xl font-semibold dark:text-white">Customer Reviews</h2>
                   <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowReviewForm(true)}>
                     <MessageSquare className="mr-2 h-4 w-4" />
                     Write a Review
                   </Button>
                 </div>
 
-                <div className="rounded-lg border bg-white p-6 shadow-sm">
-                  <div className="mb-6 flex flex-col items-center justify-between gap-4 border-b pb-6 sm:flex-row">
+                <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+                  <div className="mb-6 flex flex-col items-center justify-between gap-4 border-b dark:border-gray-800 pb-6 sm:flex-row">
                     <div className="text-center sm:text-left">
                       <div className="flex items-center justify-center gap-2 sm:justify-start">
-                        <span className="text-5xl font-bold">{business.rating}</span>
+                        <span className="text-5xl font-bold dark:text-white">{business.misikir_score}</span>
                         <div className="flex flex-col">
-                          <div className="text-sm font-medium">{renderRatingLabel(business.rating)}</div>
-                          <span className="text-sm text-gray-500">Based on {business.reviews} reviews</span>
+                          <div className="text-sm font-medium dark:text-white">{renderRatingLabel(business.misikir_score)}</div>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Based on {business.misikir_reviews_count} reviews</span>
                         </div>
                       </div>
                     </div>
@@ -282,8 +423,7 @@ export default function BusinessPage() {
                               <div
                                 className="h-full bg-yellow-400"
                                 style={{
-                                  width: `${
-                                    rating === 10
+                                  width: `${rating === 10
                                       ? "60%"
                                       : rating === 8
                                         ? "25%"
@@ -292,7 +432,7 @@ export default function BusinessPage() {
                                           : rating === 4
                                             ? "3%"
                                             : "2%"
-                                  }`,
+                                    }`,
                                 }}
                               ></div>
                             </div>
@@ -303,164 +443,158 @@ export default function BusinessPage() {
                   </div>
 
                   <div className="space-y-6">
-                    {business.reviews.map((review) => (
-                      <div key={review.id} className="border-b pb-6 last:border-0 last:pb-0">
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700">
-                              {review.user.charAt(0)}
+                    {reviews.length > 0 ? (
+                      reviews.map((review) => (
+                        <div key={review.id} className="border-b dark:border-gray-800 pb-6 last:border-0 last:pb-0">
+                          <div className="mb-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                {review.reviewer_name ? review.reviewer_name.charAt(0).toUpperCase() : 'A'}
+                              </div>
+                              <div>
+                                <p className="font-medium dark:text-white">{review.reviewer_name || 'Anonymous'}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {new Date(review.created_at).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium">{review.user}</p>
-                              <p className="text-xs text-gray-500">{review.date}</p>
+                            <div className="flex items-center">
+                              <span className="font-medium dark:text-white">{review.misikir_score}/10</span>
+                              <span className="ml-1 text-xs dark:text-gray-400">- {renderRatingLabel(review.misikir_score)}</span>
                             </div>
                           </div>
-                          <div className="flex items-center">
-                            <span className="font-medium">{review.rating}/10</span>
-                            <span className="ml-1 text-xs">- {renderRatingLabel(review.rating)}</span>
+                          <p className="mb-4 text-gray-700 dark:text-gray-300">{review.review_text}</p>
+
+                          <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-3 text-xs md:grid-cols-3">
+                            <div>
+                              <span className="font-medium dark:text-white">Time:</span> {review.time}/10
+                            </div>
+                            <div>
+                              <span className="font-medium dark:text-white">Quality:</span> {review.quality}/10
+                            </div>
+                            <div>
+                              <span className="font-medium dark:text-white">Quantity:</span> {review.quantity}/10
+                            </div>
+                            <div>
+                              <span className="font-medium dark:text-white">Trust:</span> {review.trust}/10
+                            </div>
+                            <div>
+                              <span className="font-medium dark:text-white">Honesty:</span> {review.honesty}/10
+                            </div>
+                            <div>
+                              <span className="font-medium dark:text-white">Service:</span> {review.service}/10
+                            </div>
                           </div>
                         </div>
-                        <p className="mb-4 text-gray-700">{review.comment}</p>
-
-                        {review.specific && (
-                          <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-gray-50 p-3 text-xs md:grid-cols-3">
-                            <div>
-                              <span className="font-medium">Time:</span> {review.specific.time}/10
-                            </div>
-                            <div>
-                              <span className="font-medium">Quality:</span> {review.specific.quality}/10
-                            </div>
-                            <div>
-                              <span className="font-medium">Quantity:</span> {review.specific.quantity}/10
-                            </div>
-                            <div>
-                              <span className="font-medium">Trust:</span> {review.specific.trust}/10
-                            </div>
-                            <div>
-                              <span className="font-medium">Honesty:</span> {review.specific.honesty}/10
-                            </div>
-                            <div>
-                              <span className="font-medium">Service:</span> {review.specific.service}/10
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500 dark:text-gray-400 py-8">No reviews yet. Be the first to review!</p>
+                    )}
                   </div>
                 </div>
               </TabsContent>
 
-              <TabsContent value="photos" className="mt-6 rounded-lg border bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-semibold">Photos</h2>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                  {[...Array(8)].map((_, i) => (
-                    <div key={i} className="relative aspect-square overflow-hidden rounded-lg">
+              <TabsContent value="photos" className="mt-6 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+                <h2 className="mb-4 text-xl font-semibold dark:text-white">Photos</h2>
+                {products.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+                    {products.map((product) => (
+                      <div key={product.id} className="group">
+                        <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800">
+                          {product.image ? (
+                            <Image
+                              src={product.image}
+                              alt={product.name}
+                              fill
+                              className="object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <Star className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="mt-2 text-sm font-medium dark:text-white truncate">{product.name}</p>
+                        {product.price && (
+                          <p className="text-sm text-green-600 dark:text-green-400">${product.price}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : business.logo ? (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+                    <div className="relative aspect-square overflow-hidden rounded-lg">
                       <Image
-                        src={`/placeholder.svg?height=200&width=200&text=Photo ${i + 1}`}
-                        alt={`Business photo ${i + 1}`}
+                        src={business.logo}
+                        alt={business.name}
                         fill
-                        className="object-cover transition-transform hover:scale-105"
+                        className="object-cover"
                       />
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">No photos available yet.</p>
+                )}
               </TabsContent>
             </Tabs>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold">Contact {business.name}</h2>
+            <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-semibold dark:text-white">Contact {business.name}</h2>
               <div className="space-y-4">
+                {business.owner_email && (
+                  <Button variant="outline" className="w-full">
+                    <Mail className="mr-2 h-4 w-4" />
+                    {business.owner_email}
+                  </Button>
+                )}
                 <Button className="w-full bg-green-600 hover:bg-green-700">
-                  <Phone className="mr-2 h-4 w-4" />
-                  Call Now
-                </Button>
-                <Button variant="outline" className="w-full">
-                  <Mail className="mr-2 h-4 w-4" />
-                  Send Message
-                </Button>
-                <Button variant="outline" className="w-full">
-                  <Globe className="mr-2 h-4 w-4" />
-                  Visit Website
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Leave a Review
                 </Button>
               </div>
             </div>
 
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold">Business Location</h2>
-              <div className="mb-4 aspect-video overflow-hidden rounded-lg bg-gray-200">
-                {/* This would be a Google Map in a real implementation */}
-                <div className="flex h-full items-center justify-center">
-                  <MapPin className="h-8 w-8 text-gray-400" />
-                </div>
-              </div>
-              <p className="mb-2 text-sm font-medium">{business.address}</p>
-              <Button variant="outline" size="sm" className="w-full">
-                <MapPin className="mr-2 h-4 w-4" />
-                Get Directions
-              </Button>
-            </div>
-
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold">Business Hours</h2>
-              <div className="space-y-2 text-sm">
+            <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-semibold dark:text-white">Business Statistics</h2>
+              <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span>Monday</span>
-                  <span>7:00 AM - 9:00 PM</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Misikir Score</span>
+                  <span className="font-medium dark:text-white">{business.misikir_score}/10</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Tuesday</span>
-                  <span>7:00 AM - 9:00 PM</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Reviews</span>
+                  <span className="font-medium dark:text-white">{business.misikir_reviews_count}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Wednesday</span>
-                  <span>7:00 AM - 9:00 PM</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Services Offered</span>
+                  <span className="font-medium dark:text-white">{services.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Thursday</span>
-                  <span>7:00 AM - 9:00 PM</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Friday</span>
-                  <span>7:00 AM - 9:00 PM</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Saturday</span>
-                  <span>7:00 AM - 9:00 PM</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sunday</span>
-                  <span>8:00 AM - 8:00 PM</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Products</span>
+                  <span className="font-medium dark:text-white">{products.length}</span>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold">Similar Businesses</h2>
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="relative h-12 w-12 overflow-hidden rounded-md">
-                      <Image
-                        src={`/placeholder.svg?height=50&width=50&text=${i}`}
-                        alt={`Similar business ${i}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Coffee House {i}</h3>
-                      <div className="flex items-center text-xs text-gray-500">
-                        <span>
-                          {8.5 - i * 0.3}/10 ({50 - i * 10} reviews)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-semibold dark:text-white">Joined Misikir</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {new Date(business.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                Member for {Math.floor((Date.now() - new Date(business.created_at).getTime()) / (1000 * 60 * 60 * 24))} days
+              </p>
             </div>
           </div>
         </div>
@@ -507,7 +641,7 @@ export default function BusinessPage() {
                 <li>
                   <Link href="#" className="text-gray-600 hover:text-green-600">
                     Business Login
-              
+
                   </Link>
                 </li>
                 <li>

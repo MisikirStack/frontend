@@ -30,8 +30,9 @@ export class CompaniesService {
 
     /**
      * Create a new company
+     * Accepts either JSON data or FormData (for logo upload)
      */
-    static async createCompany(data: FormData): Promise<Company> {
+    static async createCompany(data: FormData | object): Promise<Company> {
         return await apiClient.post<Company>("/api/companies/create/", data, true);
     }
 

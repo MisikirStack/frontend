@@ -61,15 +61,15 @@ export default function CompanySetupPage() {
         setIsLoading(true);
 
         try {
-            // Note: The backend should automatically set the owner from the authenticated user
-            // Categories and subcategories can be added later through the update endpoint
-            const formDataToSend = new FormData();
-            formDataToSend.append("name", formData.name);
-            if (formData.description) {
-                formDataToSend.append("description", formData.description);
-            }
+            // Send as JSON for now (use FormData only when uploading logo)
+            const companyData = {
+                name: formData.name,
+                description: formData.description || "",
+                categories: [], // Empty for now, can be added later
+                subcategories: [], // Empty for now, can be added later
+            };
 
-            const company = await CompaniesService.createCompany(formDataToSend);
+            const company = await CompaniesService.createCompany(companyData);
 
             toast.success("Business profile created!", {
                 description: "Your business profile has been created successfully.",
