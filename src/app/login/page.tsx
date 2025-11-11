@@ -62,7 +62,7 @@ export default function LoginPage() {
       // Check if user has a company
       try {
         const companies = await CompaniesService.getMyCompanies();
-        
+
         if (companies && companies.length > 0) {
           // User has company, redirect to company profile
           router.push(`/business/${companies[0].id}`);
@@ -72,7 +72,7 @@ export default function LoginPage() {
             description: "Let's set up your business profile to get started.",
             duration: 4000,
           });
-          
+
           setTimeout(() => {
             router.push("/company/setup");
           }, 1500);

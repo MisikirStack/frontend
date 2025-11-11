@@ -14,12 +14,12 @@ export function getUserFriendlyErrorMessage(error: string | undefined): string {
     const lowerError = error.toLowerCase();
 
     // Authentication errors
-    if (lowerError.includes("authentication credentials were not provided") || 
+    if (lowerError.includes("authentication credentials were not provided") ||
         lowerError.includes("not authenticated")) {
         return "Please log in to continue.";
     }
 
-    if (lowerError.includes("invalid token") || 
+    if (lowerError.includes("invalid token") ||
         lowerError.includes("token expired")) {
         return "Your session has expired. Please log in again.";
     }
@@ -57,14 +57,14 @@ export function getUserFriendlyErrorMessage(error: string | undefined): string {
     }
 
     // Permission errors
-    if (lowerError.includes("permission denied") || 
+    if (lowerError.includes("permission denied") ||
         lowerError.includes("forbidden") ||
         lowerError.includes("not authorized")) {
         return "You don't have permission to perform this action.";
     }
 
     // Network errors
-    if (lowerError.includes("network") || 
+    if (lowerError.includes("network") ||
         lowerError.includes("connection") ||
         lowerError.includes("timeout")) {
         return "Connection issue. Please check your internet and try again.";

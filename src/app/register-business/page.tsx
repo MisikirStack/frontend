@@ -65,7 +65,7 @@ export default function RegisterBusinessPage() {
         phone: formData.phone || undefined,
         role: UserRole.USER, // Default role for new users
       };
-      
+
       await register(registrationData);
 
       toast.success("Account created successfully!", {

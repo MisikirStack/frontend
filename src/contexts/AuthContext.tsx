@@ -62,24 +62,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = async (credentials: LoginRequest) => {
         try {
             const response = await apiClient.post<any>('/api/auth/login/', credentials)
-            
+
             // Backend returns: { user: {...}, tokens: { access: "...", refresh: "..." } }
             if (response.tokens && response.tokens.access && response.tokens.refresh) {
                 // Store tokens
                 tokenManager.setTokens(response.tokens.access, response.tokens.refresh)
-                
+
                 // Set user from response
                 if (response.user) {
                     setUser(response.user)
                 }
-                
+
                 return
             }
-            
+
             // Fallback: Check for flat format { access, refresh, user }
             if (response.access && response.refresh) {
                 tokenManager.setTokens(response.access, response.refresh)
-                
+
                 if (response.user) {
                     setUser(response.user)
                 } else {
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Backend returns: { user: {...}, tokens: { access: "...", refresh: "..." } }
             if (response.tokens && response.tokens.access && response.tokens.refresh) {
                 tokenManager.setTokens(response.tokens.access, response.tokens.refresh)
-                
+
                 if (response.user) {
                     setUser(response.user)
                 }
