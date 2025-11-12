@@ -139,7 +139,7 @@ export default function CompanySetupPage() {
                     description: friendlyMessage,
                 });
             } else {
-                const friendlyMessage = isEditMode 
+                const friendlyMessage = isEditMode
                     ? "We couldn't update your business profile. Please try again."
                     : "We couldn't create your business profile. Please try again.";
                 setError(friendlyMessage);
@@ -188,7 +188,7 @@ export default function CompanySetupPage() {
                         {isEditMode ? "Edit Your Business Profile" : "Create Your Business Profile"}
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400">
-                        {isEditMode 
+                        {isEditMode
                             ? "Update your business information on Misikir"
                             : "Let's get started by setting up your business on Misikir"
                         }
