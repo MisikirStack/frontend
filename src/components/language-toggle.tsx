@@ -30,14 +30,14 @@ export function LanguageToggle() {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem 
+                <DropdownMenuItem
                     onClick={() => handleLanguageChange("en")}
                     className={language === "en" ? "bg-accent" : ""}
                 >
                     <span className="mr-2">🇺🇸</span>
                     <span>English</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                     onClick={() => handleLanguageChange("am")}
                     className={language === "am" ? "bg-accent" : ""}
                 >

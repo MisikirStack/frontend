@@ -7,7 +7,17 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Star, MapPin, Phone, Mail, Globe, Clock, ChevronLeft, Share2, ThumbsUp, MessageSquare, Loader2 } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Star, MapPin, Phone, Mail, Globe, Clock, ChevronLeft, Share2, ThumbsUp, MessageSquare, Loader2, Edit2, Trash2, Building2 } from "lucide-react"
+import { Navbar } from "@/components/navbar"
 import ReviewForm from "@/components/review-form"
 import { CompaniesService } from "@/services/api/companies.service"
 import { ReviewsService } from "@/services/api/reviews.service"
@@ -29,6 +39,11 @@ export default function BusinessPage() {
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Check if current user is the owner
+  const isOwner = user && business && user.email === business.owner_email
 
   useEffect(() => {
     const fetchBusinessData = async () => {
@@ -159,13 +174,14 @@ export default function BusinessPage() {
 
   const handleSubmitReview = async (reviewData: any) => {
     try {
-      const formData = new FormData()
-      formData.append('company', companyId.toString())
-      formData.append('rating', reviewData.rating.toString())
-      formData.append('content', reviewData.comment)
-      formData.append('user', user?.email || '')
+      const data = {
+        company: companyId,
+        rating: reviewData.rating,
+        content: reviewData.comment,
+        title: reviewData.title || 'Review'
+      }
 
-      await ReviewsService.createReview(formData)
+      await ReviewsService.createReview(data)
 
       toast.success("Review submitted!", {
         description: "Thank you for your feedback.",
@@ -181,6 +197,39 @@ export default function BusinessPage() {
       toast.error("Unable to submit review", {
         description: friendlyMessage,
       })
+    }
+  }
+
+  const handleEdit = () => {
+    router.push(`/company/setup?edit=${companyId}`)
+  }
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/business/${companyId}`
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success("Link copied!", {
+        description: "Share link has been copied to clipboard"
+      })
+    } catch (err) {
+      toast.error("Failed to copy link")
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!business) return
+    
+    setIsDeleting(true)
+    try {
+      await CompaniesService.deleteCompany(business.id)
+      toast.success("Company deleted successfully")
+      router.push('/profile')
+    } catch (err: any) {
+      console.error("Failed to delete company:", err)
+      toast.error(err.message || "Failed to delete company")
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
     }
   }
 
@@ -214,31 +263,16 @@ export default function BusinessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <header className="sticky top-0 z-50 border-b bg-white dark:bg-gray-900 dark:border-gray-800">
-        <div className="container flex h-16 items-center px-4 md:px-6">
-          <Link href="/" className="flex items-center">
-            <Star className="h-6 w-6 text-yellow-500" />
-            <span className="ml-2 text-xl font-bold text-green-700 dark:text-green-500">Misikir</span>
-          </Link>
-          <div className="ml-auto flex items-center gap-4">
-            {user ? (
-              <Button variant="outline" onClick={() => router.push('/company/setup')}>My Business</Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => router.push('/login')}>Login</Button>
-                <Button className="bg-green-600 hover:bg-green-700" onClick={() => router.push('/register-business')}>Register Your Business</Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="container py-8">
-        <Link href="/" className="mb-4 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-500">
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          Back to search results
-        </Link>
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      
+      <main className="flex-1 bg-gradient-to-b from-green-50 to-background dark:from-green-950/20">
+        <div className="container mx-auto px-4 md:px-6 py-8">
+          <div className="max-w-7xl mx-auto">
+            <Link href="/" className="mb-6 inline-flex items-center text-sm text-muted-foreground hover:text-green-600 dark:hover:text-green-400">
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Back to home
+            </Link>
 
         {/* Business Cover Image */}
         <div className="relative mb-6 h-[200px] w-full overflow-hidden rounded-lg md:h-[300px] bg-gray-200 dark:bg-gray-800">
@@ -254,63 +288,105 @@ export default function BusinessPage() {
         <div className="grid gap-8 md:grid-cols-3">
           {/* Business Info Column */}
           <div className="md:col-span-2">
-            <div className="mb-6 flex flex-col gap-4 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm sm:flex-row sm:items-center">
-              <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800">
-                {business.logo ? (
-                  <Image src={business.logo} alt={business.name} fill className="object-cover" />
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <Star className="h-8 w-8 text-gray-400" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">{business.name}</h1>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="h-8">
-                      <Share2 className="mr-1 h-4 w-4" />
-                      Share
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8">
-                      <ThumbsUp className="mr-1 h-4 w-4" />
-                      Like
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
-                  {business.category_names && (
-                    <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">
-                      {business.category_names}
-                    </Badge>
-                  )}
-                  <div className="flex items-center">
-                    <span className="font-medium">{business.misikir_score}/10</span>
-                    <span className="ml-1">({business.misikir_reviews_count} reviews)</span>
-                    <span className="ml-1 text-xs">- {renderRatingLabel(business.misikir_score)}</span>
-                  </div>
-                  {business.subcategory_names && (
-                    <div className="flex items-center">
-                      <span className="font-medium">Type:</span> {business.subcategory_names}
+            {/* Owner Controls - Show only if user is the owner */}
+            {isOwner && (
+              <Card className="mb-6 border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-950/20">
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <span className="font-medium text-green-800 dark:text-green-300">You own this business</span>
                     </div>
-                  )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleEdit}
+                        className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+                      >
+                        <Edit2 className="mr-2 h-4 w-4" />
+                        Edit Business
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteDialogOpen(true)}
+                        className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className="mb-6 border-green-200 dark:border-green-900/30">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800 flex-shrink-0">
+                    {business.logo ? (
+                      <Image src={business.logo} alt={business.name} fill className="object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Building2 className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h1 className="text-2xl font-bold text-green-800 dark:text-green-400 md:text-3xl">{business.name}</h1>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                          {business.category_names && (
+                            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">
+                              {business.category_names}
+                            </Badge>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="font-medium text-green-700 dark:text-green-400">{business.misikir_score}/10</span>
+                            <span className="ml-1">({business.misikir_reviews_count} reviews)</span>
+                            <span className="ml-1 text-xs">- {renderRatingLabel(business.misikir_score)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8"
+                          onClick={handleShare}
+                        >
+                          <Share2 className="mr-1 h-4 w-4" />
+                          Share
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             <Tabs defaultValue="about" className="mb-6">
-              <TabsList className="w-full justify-start">
+              <TabsList className="w-full justify-start bg-white dark:bg-gray-900 border-b">
                 <TabsTrigger value="about">About</TabsTrigger>
                 <TabsTrigger value="services">Services</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
                 <TabsTrigger value="photos">Photos</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="about" className="mt-6 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-semibold dark:text-white">About {business.name}</h2>
-                <p className="mb-6 text-gray-700 dark:text-gray-300">{business.description || 'No description available.'}</p>
+              <TabsContent value="about" className="mt-6">
+                <Card className="border-green-200 dark:border-green-900/30">
+                  <CardHeader>
+                    <CardTitle className="text-green-700 dark:text-green-400">About {business.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <p className="text-muted-foreground">{business.description || 'No description available.'}</p>
 
-                <h3 className="mb-3 text-lg font-medium dark:text-white">Business Information</h3>
+                    <div>
+                      <h3 className="mb-3 text-lg font-medium text-green-700 dark:text-green-400">Business Information</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {business.owner_email && (
                     <div className="flex items-start gap-2">
@@ -353,9 +429,17 @@ export default function BusinessPage() {
                     </div>
                   </div>
                 </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
-              <TabsContent value="services" className="mt-6 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+              <TabsContent value="services" className="mt-6">
+                <Card className="border-green-200 dark:border-green-900/30">
+                  <CardHeader>
+                    <CardTitle className="text-green-700 dark:text-green-400">Services Offered</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                 <h2 className="mb-4 text-xl font-semibold dark:text-white">Services Offered</h2>
                 {services.length > 0 ? (
                   <ul className="grid gap-3 sm:grid-cols-2">
@@ -390,20 +474,26 @@ export default function BusinessPage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">No services listed yet.</p>
+                  <p className="text-center text-muted-foreground py-8">No services listed yet.</p>
                 )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
-              <TabsContent value="reviews" className="mt-6 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold dark:text-white">Customer Reviews</h2>
-                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowReviewForm(true)}>
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Write a Review
-                  </Button>
-                </div>
-
-                <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+              <TabsContent value="reviews" className="mt-6">
+                <Card className="border-green-200 dark:border-green-900/30">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-green-700 dark:text-green-400">Customer Reviews</CardTitle>
+                      {!isOwner && (
+                        <Button className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600" onClick={() => setShowReviewForm(true)}>
+                          <MessageSquare className="mr-2 h-4 w-4" />
+                          Write a Review
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
                   <div className="mb-6 flex flex-col items-center justify-between gap-4 border-b dark:border-gray-800 pb-6 sm:flex-row">
                     <div className="text-center sm:text-left">
                       <div className="flex items-center justify-center gap-2 sm:justify-start">
@@ -492,14 +582,19 @@ export default function BusinessPage() {
                         </div>
                       ))
                     ) : (
-                      <p className="text-center text-gray-500 dark:text-gray-400 py-8">No reviews yet. Be the first to review!</p>
+                      <p className="text-center text-muted-foreground py-8">No reviews yet. Be the first to review!</p>
                     )}
                   </div>
-                </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
-              <TabsContent value="photos" className="mt-6 rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-semibold dark:text-white">Photos</h2>
+              <TabsContent value="photos" className="mt-6">
+                <Card className="border-green-200 dark:border-green-900/30">
+                  <CardHeader>
+                    <CardTitle className="text-green-700 dark:text-green-400">Photos</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                 {products.length > 0 ? (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                     {products.map((product) => (
@@ -537,33 +632,68 @@ export default function BusinessPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">No photos available yet.</p>
+                  <p className="text-center text-muted-foreground py-8">No photos available yet.</p>
                 )}
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold dark:text-white">Contact {business.name}</h2>
-              <div className="space-y-4">
-                {business.owner_email && (
-                  <Button variant="outline" className="w-full">
-                    <Mail className="mr-2 h-4 w-4" />
-                    {business.owner_email}
-                  </Button>
-                )}
-                <Button className="w-full bg-green-600 hover:bg-green-700">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Leave a Review
-                </Button>
-              </div>
-            </div>
+            <Card className="border-green-200 dark:border-green-900/30">
+              <CardHeader>
+                <CardTitle className="text-green-700 dark:text-green-400">
+                  {isOwner ? "Manage Business" : `Contact ${business.name}`}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {!isOwner && business.owner_email && (
+                    <Button variant="outline" className="w-full">
+                      <Mail className="mr-2 h-4 w-4" />
+                      {business.owner_email}
+                    </Button>
+                  )}
+                  
+                  {isOwner ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        variant="outline"
+                        className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+                        onClick={handleEdit}
+                      >
+                        <Edit2 className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+                        onClick={() => setDeleteDialogOpen(true)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                      onClick={() => user ? setShowReviewForm(true) : router.push('/login')}
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Leave a Review
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold dark:text-white">Business Statistics</h2>
-              <div className="space-y-3">
+            <Card className="border-green-200 dark:border-green-900/30">
+              <CardHeader>
+                <CardTitle className="text-green-700 dark:text-green-400">Business Statistics</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Misikir Score</span>
                   <span className="font-medium dark:text-white">{business.misikir_score}/10</span>
@@ -577,106 +707,62 @@ export default function BusinessPage() {
                   <span className="font-medium dark:text-white">{services.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Products</span>
-                  <span className="font-medium dark:text-white">{products.length}</span>
+                  <span className="text-sm text-muted-foreground">Products</span>
+                  <span className="font-medium">{products.length}</span>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold dark:text-white">Joined Misikir</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {new Date(business.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </p>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
-                Member for {Math.floor((Date.now() - new Date(business.created_at).getTime()) / (1000 * 60 * 60 * 24))} days
-              </p>
-            </div>
+            <Card className="border-green-200 dark:border-green-900/30">
+              <CardHeader>
+                <CardTitle className="text-green-700 dark:text-green-400">Joined Misikir</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {new Date(business.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Member for {Math.floor((Date.now() - new Date(business.created_at).getTime()) / (1000 * 60 * 60 * 24))} days
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
           </div>
         </div>
       </main>
 
-      <footer className="border-t bg-white py-8">
-        <div className="container px-4 md:px-6">
-          <div className="grid gap-8 md:grid-cols-4">
-            <div>
-              <div className="flex items-center">
-                <Star className="h-6 w-6 text-yellow-500" />
-                <span className="ml-2 text-xl font-bold text-green-700">Misikir</span>
-              </div>
-              <p className="mt-4 text-sm text-gray-600">Your trusted witness for business information</p>
-            </div>
-            <div>
-              <h3 className="mb-4 text-sm font-semibold uppercase text-gray-900">For Users</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Write a Review
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Browse Categories
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Search Businesses
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-4 text-sm font-semibold uppercase text-gray-900">For Businesses</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Register Your Business
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Business Login
-
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Advertising Options
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-4 text-sm font-semibold uppercase text-gray-900">Contact Us</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-600 hover:text-green-600">
-                    Privacy Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 border-t pt-8 text-center text-sm text-gray-600">
-            <p>&copy; {new Date().getFullYear()} Misikir. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Company</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{business?.name}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Company"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showReviewForm && (
         <ReviewForm

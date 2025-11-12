@@ -16,8 +16,11 @@ import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 export default function CompanySetupPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const editId = searchParams.get("edit");
+    const isEditMode = Boolean(editId);
     const { user, isLoading: authLoading } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: "",
@@ -34,10 +37,45 @@ export default function CompanySetupPage() {
         }
     }, [user, authLoading, router]);
 
-    // Check if user already has a company
+    // Load existing company data if in edit mode
+    useEffect(() => {
+        const loadCompanyData = async () => {
+            if (editId && user) {
+                setIsLoadingData(true);
+                try {
+                    const company = await CompaniesService.getCompanyById(parseInt(editId));
+                    // Check if user is the owner
+                    if (company.owner_email !== user.email) {
+                        toast.error("Access denied", {
+                            description: "You can only edit your own businesses.",
+                        });
+                        router.push(`/business/${editId}`);
+                        return;
+                    }
+                    // Populate form with existing data
+                    setFormData({
+                        name: company.name,
+                        description: company.description || "",
+                    });
+                } catch (err) {
+                    console.error("Error loading company:", err);
+                    toast.error("Failed to load business data");
+                    router.push("/profile");
+                } finally {
+                    setIsLoadingData(false);
+                }
+            }
+        };
+
+        if (!authLoading && user) {
+            loadCompanyData();
+        }
+    }, [editId, user, authLoading, router]);
+
+    // Check if user already has a company (only when creating, not editing)
     useEffect(() => {
         const checkExistingCompany = async () => {
-            if (user) {
+            if (user && !isEditMode) {
                 try {
                     const companies = await CompaniesService.getMyCompanies();
                     if (companies && companies.length > 0) {
@@ -50,10 +88,10 @@ export default function CompanySetupPage() {
             }
         };
 
-        if (user) {
+        if (user && !isEditMode) {
             checkExistingCompany();
         }
-    }, [user, router]);
+    }, [user, router, isEditMode]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,33 +99,51 @@ export default function CompanySetupPage() {
         setIsLoading(true);
 
         try {
-            // Send as JSON for now (use FormData only when uploading logo)
-            const companyData = {
-                name: formData.name,
-                description: formData.description || "",
-                categories: [], // Empty for now, can be added later
-                subcategories: [], // Empty for now, can be added later
-            };
+            if (isEditMode && editId) {
+                // Update existing company
+                const formDataToSend = new FormData();
+                formDataToSend.append("name", formData.name);
+                formDataToSend.append("description", formData.description || "");
 
-            const company = await CompaniesService.createCompany(companyData);
+                const company = await CompaniesService.updateCompany(parseInt(editId), formDataToSend);
 
-            toast.success("Business profile created!", {
-                description: "Your business profile has been created successfully.",
-            });
+                toast.success("Business profile updated!", {
+                    description: "Your business profile has been updated successfully.",
+                });
 
-            // Redirect to the new company page
-            router.push(`/business/${company.id}`);
+                // Redirect to the updated company page
+                router.push(`/business/${company.id}`);
+            } else {
+                // Create new company
+                const companyData = {
+                    name: formData.name,
+                    description: formData.description || "",
+                    categories: [], // Empty for now, can be added later
+                    subcategories: [], // Empty for now, can be added later
+                };
+
+                const company = await CompaniesService.createCompany(companyData);
+
+                toast.success("Business profile created!", {
+                    description: "Your business profile has been created successfully.",
+                });
+
+                // Redirect to the new company page
+                router.push(`/business/${company.id}`);
+            }
         } catch (err) {
             if (err instanceof ApiError) {
                 const friendlyMessage = getUserFriendlyErrorMessage(err.message);
                 setError(friendlyMessage);
-                toast.error("Unable to create business profile", {
+                toast.error(isEditMode ? "Unable to update business profile" : "Unable to create business profile", {
                     description: friendlyMessage,
                 });
             } else {
-                const friendlyMessage = "We couldn't create your business profile. Please try again.";
+                const friendlyMessage = isEditMode 
+                    ? "We couldn't update your business profile. Please try again."
+                    : "We couldn't create your business profile. Please try again.";
                 setError(friendlyMessage);
-                toast.error("Unable to create business profile", {
+                toast.error(isEditMode ? "Unable to update business profile" : "Unable to create business profile", {
                     description: friendlyMessage,
                 });
             }
@@ -103,12 +159,12 @@ export default function CompanySetupPage() {
         }));
     };
 
-    if (authLoading) {
+    if (authLoading || isLoadingData) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <div className="text-center">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-600 border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading...</p>
+                    <p className="text-gray-600">{isLoadingData ? "Loading business data..." : "Loading..."}</p>
                 </div>
             </div>
         );
@@ -129,10 +185,13 @@ export default function CompanySetupPage() {
                         <Building2 className="h-8 w-8 text-green-600 dark:text-green-400" />
                     </div>
                     <h1 className="text-3xl font-bold dark:text-white mb-2">
-                        Create Your Business Profile
+                        {isEditMode ? "Edit Your Business Profile" : "Create Your Business Profile"}
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400">
-                        Let's get started by setting up your business on Misikir
+                        {isEditMode 
+                            ? "Update your business information on Misikir"
+                            : "Let's get started by setting up your business on Misikir"
+                        }
                     </p>
                 </div>
 
@@ -171,11 +230,13 @@ export default function CompanySetupPage() {
                             />
                         </div>
 
-                        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4">
-                            <p className="text-sm text-blue-800 dark:text-blue-300">
-                                <strong>Note:</strong> After creating your business profile, you'll be able to add more details like categories, contact information, products, and services.
-                            </p>
-                        </div>
+                        {!isEditMode && (
+                            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4">
+                                <p className="text-sm text-blue-800 dark:text-blue-300">
+                                    <strong>Note:</strong> After creating your business profile, you'll be able to add more details like categories, contact information, products, and services.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex gap-4">
@@ -183,10 +244,10 @@ export default function CompanySetupPage() {
                             type="button"
                             variant="outline"
                             className="flex-1"
-                            onClick={() => router.push("/")}
+                            onClick={() => isEditMode ? router.push(`/business/${editId}`) : router.push("/")}
                             disabled={isLoading}
                         >
-                            Skip for now
+                            {isEditMode ? "Cancel" : "Skip for now"}
                         </Button>
                         <Button
                             type="submit"
@@ -194,10 +255,10 @@ export default function CompanySetupPage() {
                             disabled={isLoading || !formData.name.trim()}
                         >
                             {isLoading ? (
-                                "Creating..."
+                                isEditMode ? "Updating..." : "Creating..."
                             ) : (
                                 <>
-                                    Create Profile
+                                    {isEditMode ? "Update Profile" : "Create Profile"}
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </>
                             )}
