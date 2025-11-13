@@ -188,6 +188,7 @@ export function useBusinesses(filters?: {
     search?: string
     minRating?: number
     ordering?: string
+    isFeatured?: boolean
     page?: number
 }) {
     const [businesses, setBusinesses] = useState<Business[]>([])
@@ -204,6 +205,7 @@ export function useBusinesses(filters?: {
                     search: filters?.search,
                     min_rating: filters?.minRating,
                     ordering: filters?.ordering || '-misikir_score',
+                    is_featured: filters?.isFeatured,
                     page: filters?.page || 1,
                     // Note: Backend might not support category/location filters by name yet
                     // May need to convert these to IDs or update backend API
@@ -249,7 +251,7 @@ export function useBusinesses(filters?: {
         }
 
         fetchBusinesses()
-    }, [filters?.category, filters?.location, filters?.search, filters?.minRating, filters?.ordering, filters?.page])
+    }, [filters?.category, filters?.location, filters?.search, filters?.minRating, filters?.ordering, filters?.isFeatured, filters?.page])
 
     return { businesses, isLoading, error }
 }

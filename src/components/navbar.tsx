@@ -197,7 +197,11 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                             if (isAuthenticated) {
                                 router.push("/write-review");
                             } else {
-                                router.push("/login");
+                                // Store redirect and go to login with redirect parameter
+                                if (typeof window !== 'undefined') {
+                                    localStorage.setItem('redirect_after_login', '/write-review');
+                                }
+                                router.push("/login?redirect=/write-review");
                             }
                         }}
                         variant="outline"
@@ -398,7 +402,11 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                     if (isAuthenticated) {
                                         router.push("/write-review");
                                     } else {
-                                        router.push("/login");
+                                        // Store redirect and go to login with redirect parameter
+                                        if (typeof window !== 'undefined') {
+                                            localStorage.setItem('redirect_after_login', '/write-review');
+                                        }
+                                        router.push("/login?redirect=/write-review");
                                     }
                                     setMobileMenuOpen(false);
                                 }}

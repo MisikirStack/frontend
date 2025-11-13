@@ -87,6 +87,7 @@ export interface Company {
     misikir_score: number
     misikir_reviews_count: number
     misikir_profile_url?: string | null
+    is_featured: boolean
     created_at: string
     updated_at: string
 }
@@ -102,6 +103,7 @@ export interface CompanyList {
     misikir_score: number
     misikir_reviews_count: number
     misikir_profile_url?: string | null
+    is_featured: boolean
     created_at: string
 }
 
@@ -285,6 +287,7 @@ export interface CompanySearchParams {
     region?: number
     min_rating?: number
     ordering?: string // 'misikir_score' | '-misikir_score' | 'misikir_reviews_count' | '-misikir_reviews_count' | 'created_at' | '-created_at'
+    is_featured?: boolean
     page?: number
 }
 

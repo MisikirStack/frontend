@@ -27,6 +27,7 @@ export class SearchService {
         if (params.min_rating) queryParams.append("min_rating", params.min_rating.toString());
         if (params.page) queryParams.append("page", params.page.toString());
         if (params.ordering) queryParams.append("ordering", params.ordering);
+        if (params.is_featured !== undefined) queryParams.append("is_featured", params.is_featured.toString());
 
         return await apiClient.get<PaginatedResponse<CompanyList>>(
             `/api/search/companies/?${queryParams.toString()}`

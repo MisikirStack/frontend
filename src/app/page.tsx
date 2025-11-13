@@ -55,10 +55,10 @@ export default function Home() {
   // Search suggestions
   const { results: suggestions, isLoading: suggestionsLoading } = useBusinessSearch(searchQuery);
 
-  // Featured/Sponsored businesses - using top rated businesses as featured
+  // Featured/Sponsored businesses - only show admin-featured businesses
   const { businesses: featuredBusinesses, isLoading: featuredLoading } = useBusinesses({
+    isFeatured: true,
     ordering: "-misikir_score",
-    minRating: 4.5,
   });
 
   const handleSearchSelect = (businessName: string) => {
@@ -690,7 +690,7 @@ export default function Home() {
                 Featured Businesses
               </h2>
               <p className="text-sm text-muted-foreground">
-                Top-rated businesses with exceptional service and reviews
+                Handpicked businesses verified and featured by our team
               </p>
             </div>
 
@@ -902,7 +902,7 @@ export default function Home() {
               </h3>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="#" className="text-muted-foreground hover:text-green-600 dark:hover:text-green-500 transition-colors">
+                  <Link href="/write-review" className="text-muted-foreground hover:text-green-600 dark:hover:text-green-500 transition-colors">
                     Write a Review
                   </Link>
                 </li>

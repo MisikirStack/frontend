@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Star } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -15,9 +15,12 @@ import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -43,45 +46,62 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // Check if there's a redirect URL from query params or localStorage FIRST (before even logging in)
+      const storedRedirect = typeof window !== 'undefined' ? localStorage.getItem('redirect_after_login') : null;
+      const targetRedirect = redirectTo || storedRedirect;
+
       // Login and wait for tokens to be stored
       await login({
         email: formData.email,
         password: formData.password,
       });
 
+      // Clear the stored redirect
+      if (typeof window !== 'undefined' && storedRedirect) {
+        localStorage.removeItem('redirect_after_login');
+      }
+
+      // PRIORITY: If there's a redirect target, go there immediately and SKIP all other logic
+      if (targetRedirect) {
+        setShouldRedirect(true); // Set flag to prevent company check
+        toast.success("Welcome back!", {
+          description: "Taking you to write a review...",
+        });
+
+        router.push(targetRedirect);
+        return; // EXIT IMMEDIATELY - don't run any code below
+      }
+
+      // Only show this toast and check company if NO redirect
       toast.success("Welcome back!", {
         description: "You have successfully logged in.",
       });
 
-      // Verify tokens are stored before proceeding
-      const hasTokens = typeof window !== 'undefined' && localStorage.getItem('misikir_access_token');
-      if (!hasTokens) {
-        throw new Error('Authentication failed: No tokens received');
-      }
+      // Only check for company if no redirect was specified AND flag is not set
+      if (!shouldRedirect) {
+        try {
+          const companies = await CompaniesService.getMyCompanies();
 
-      // Check if user has a company
-      try {
-        const companies = await CompaniesService.getMyCompanies();
+          if (companies && companies.length > 0) {
+            // User has company, redirect to company profile
+            router.push(`/business/${companies[0].id}`);
+          } else {
+            // No company, show prompt and redirect to create company
+            toast.info("Create your business profile", {
+              description: "Let's set up your business profile to get started.",
+              duration: 4000,
+            });
 
-        if (companies && companies.length > 0) {
-          // User has company, redirect to company profile
-          router.push(`/business/${companies[0].id}`);
-        } else {
-          // No company, show prompt and redirect to create company
-          toast.info("Create your business profile", {
-            description: "Let's set up your business profile to get started.",
-            duration: 4000,
-          });
-
-          setTimeout(() => {
-            router.push("/company/setup");
-          }, 1500);
+            setTimeout(() => {
+              router.push("/company/setup");
+            }, 1500);
+          }
+        } catch (companyError) {
+          // If there's an error fetching companies, just redirect to home silently
+          // This is not a critical error - user is logged in successfully
+          console.error("Error fetching companies:", companyError);
+          router.push("/");
         }
-      } catch (companyError) {
-        // If there's an error fetching companies, just redirect to home silently
-        // This is not a critical error - user is logged in successfully
-        console.error("Error fetching companies:", companyError);
-        router.push("/");
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -197,7 +217,7 @@ export default function LoginPage() {
               <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600" disabled={isLoading}>{isLoading ? "Logging in..." : "Login"}</Button>
               <div className="text-center text-sm">
                 <span className="text-muted-foreground">Don't have an account? </span>
-                <Link href="/register-business" className="text-green-600 dark:text-green-400 hover:underline font-medium">Sign Up</Link>
+                <Link href={redirectTo ? `/register-business?redirect=${redirectTo}` : "/register-business"} className="text-green-600 dark:text-green-400 hover:underline font-medium">Sign Up</Link>
               </div>
             </div>
           </div>

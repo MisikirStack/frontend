@@ -50,13 +50,17 @@ export default function WriteReviewPage() {
     // Check authentication on mount
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
+            // Store the intended destination
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('redirect_after_login', '/write-review');
+            }
+
             toast.error("Please log in to write a review", {
                 description: "You need to be logged in to share your experience.",
             });
-            // Redirect to login page after short delay
-            setTimeout(() => {
-                router.push("/login");
-            }, 2000);
+
+            // Redirect IMMEDIATELY to login page with redirect parameter
+            router.push("/login?redirect=/write-review");
         }
     }, [isAuthenticated, authLoading, router]);
 
@@ -187,7 +191,12 @@ export default function WriteReviewPage() {
                                 </Button>
                                 <Button
                                     className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
-                                    onClick={() => router.push("/login")}
+                                    onClick={() => {
+                                        if (typeof window !== 'undefined') {
+                                            localStorage.setItem('redirect_after_login', '/write-review');
+                                        }
+                                        router.push("/login?redirect=/write-review");
+                                    }}
                                 >
                                     Log In
                                 </Button>
@@ -353,8 +362,8 @@ export default function WriteReviewPage() {
                                                 >
                                                     <Star
                                                         className={`h-10 w-10 transition-colors ${star <= (hoveredRating || rating)
-                                                                ? "fill-yellow-400 text-yellow-400"
-                                                                : "text-gray-300 dark:text-gray-600"
+                                                            ? "fill-yellow-400 text-yellow-400"
+                                                            : "text-gray-300 dark:text-gray-600"
                                                             }`}
                                                     />
                                                 </button>
@@ -419,8 +428,8 @@ export default function WriteReviewPage() {
                                             type="button"
                                             variant={wouldRecommend === true ? "default" : "outline"}
                                             className={`h-16 text-base font-semibold ${wouldRecommend === true
-                                                    ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
-                                                    : "hover:border-green-600 hover:text-green-600 dark:hover:border-green-500 dark:hover:text-green-500"
+                                                ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                                                : "hover:border-green-600 hover:text-green-600 dark:hover:border-green-500 dark:hover:text-green-500"
                                                 }`}
                                             onClick={() => setWouldRecommend(true)}
                                             disabled={isSubmitting}
@@ -431,8 +440,8 @@ export default function WriteReviewPage() {
                                             type="button"
                                             variant={wouldRecommend === false ? "default" : "outline"}
                                             className={`h-16 text-base font-semibold ${wouldRecommend === false
-                                                    ? "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
-                                                    : "hover:border-red-600 hover:text-red-600 dark:hover:border-red-500 dark:hover:text-red-500"
+                                                ? "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
+                                                : "hover:border-red-600 hover:text-red-600 dark:hover:border-red-500 dark:hover:text-red-500"
                                                 }`}
                                             onClick={() => setWouldRecommend(false)}
                                             disabled={isSubmitting}

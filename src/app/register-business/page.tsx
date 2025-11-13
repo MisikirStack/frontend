@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Star } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -15,9 +15,12 @@ import { getUserFriendlyErrorMessage } from "@/lib/error-messages";
 
 export default function RegisterBusinessPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
+  const { register, login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -66,16 +69,54 @@ export default function RegisterBusinessPage() {
         role: UserRole.USER, // Default role for new users
       };
 
+      // Check if there's a redirect URL FIRST (before even registering)
+      const storedRedirect = typeof window !== 'undefined' ? localStorage.getItem('redirect_after_login') : null;
+      const targetRedirect = redirectTo || storedRedirect;
+
       await register(registrationData);
 
-      toast.success("Account created successfully!", {
-        description: "Please login to continue.",
-      });
+      // Clear the stored redirect
+      if (typeof window !== 'undefined' && storedRedirect) {
+        localStorage.removeItem('redirect_after_login');
+      }
 
-      // Redirect to login page after successful registration
-      setTimeout(() => {
-        router.push("/login");
-      }, 1000);
+      // PRIORITY: If there's a redirect target, auto-login and go there immediately
+      if (targetRedirect) {
+        setShouldRedirect(true); // Set flag
+        toast.success("Account created successfully!", {
+          description: "Logging you in and taking you to write a review...",
+        });
+
+        try {
+          await login({
+            email: formData.email,
+            password: formData.password,
+          });
+
+          // Go to redirect target immediately after login
+          router.push(targetRedirect);
+          return; // EXIT - don't run any code below
+        } catch (loginErr) {
+          // If auto-login fails, redirect to login page with redirect parameter
+          toast.info("Please log in to continue");
+          setTimeout(() => {
+            router.push(`/login?redirect=${targetRedirect}`);
+          }, 1000);
+          return;
+        }
+      }
+
+      // No redirect - normal registration flow (only if flag is not set)
+      if (!shouldRedirect) {
+        toast.success("Account created successfully!", {
+          description: "Please log in to continue.",
+        });
+
+        // Redirect to login page after successful registration
+        setTimeout(() => {
+          router.push("/login");
+        }, 1000);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         const friendlyMessage = getUserFriendlyErrorMessage(err.message);
@@ -269,7 +310,7 @@ export default function RegisterBusinessPage() {
                   Already have an account?{" "}
                 </span>
                 <Link
-                  href="/login"
+                  href={redirectTo ? `/login?redirect=${redirectTo}` : "/login"}
                   className="text-green-600 dark:text-green-400 hover:underline font-medium"
                 >
                   Log In
