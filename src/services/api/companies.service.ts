@@ -45,9 +45,18 @@ export class CompaniesService {
 
     /**
      * Delete company
+     * Note: Backend doesn't support company deletion yet (405 Method Not Allowed)
+     * This will throw an error until the endpoint is implemented
      */
     static async deleteCompany(id: number): Promise<void> {
-        await apiClient.delete(`/api/companies/${id}/`, true);
+        try {
+            await apiClient.delete(`/api/companies/${id}/delete/`, true);
+        } catch (error: any) {
+            if (error.status === 405) {
+                throw new Error("Company deletion is not supported yet. Please contact support.");
+            }
+            throw error;
+        }
     }
 
     /**
@@ -65,9 +74,19 @@ export class CompaniesService {
 
     /**
      * Get company products
+     * Note: Requires auth and sufficient points (5 points) to view
      */
     static async getCompanyProducts(companyId: number): Promise<Product[]> {
-        return await apiClient.get<Product[]>(`/api/companies/${companyId}/products/`, true);
+        try {
+            return await apiClient.get<Product[]>(`/api/companies/${companyId}/products/`, true);
+        } catch (error: any) {
+            // If 402 error (insufficient points), return empty array instead of throwing
+            if (error.status === 402) {
+                console.warn('Insufficient points to view products');
+                return [];
+            }
+            throw error;
+        }
     }
 
     /**
@@ -97,9 +116,19 @@ export class CompaniesService {
 
     /**
      * Get company services
+     * Note: Requires auth and sufficient points (5 points) to view
      */
     static async getCompanyServices(companyId: number): Promise<Service[]> {
-        return await apiClient.get<Service[]>(`/api/companies/${companyId}/services/`, true);
+        try {
+            return await apiClient.get<Service[]>(`/api/companies/${companyId}/services/`, true);
+        } catch (error: any) {
+            // If 402 error (insufficient points), return empty array instead of throwing
+            if (error.status === 402) {
+                console.warn('Insufficient points to view services');
+                return [];
+            }
+            throw error;
+        }
     }
 
     /**
@@ -148,6 +177,17 @@ export class CompaniesService {
         return await apiClient.put<ContactInfo>(
             `/api/companies/${companyId}/contact-info/update/`,
             data,
+            true
+        );
+    }
+
+    /**
+     * Toggle featured status (Admin only)
+     */
+    static async toggleFeatured(companyId: number, isFeatured: boolean): Promise<Company> {
+        return await apiClient.patch<Company>(
+            `/api/companies/${companyId}/update/`,
+            { is_featured: isFeatured },
             true
         );
     }

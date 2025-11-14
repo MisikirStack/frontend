@@ -8,8 +8,9 @@ import type { Review, PaginatedResponse } from "@/types/api";
 export class ReviewsService {
     /**
      * Create a new review
+     * Accepts FormData for image uploads or JSON object
      */
-    static async createReview(data: {
+    static async createReview(data: FormData | {
         company: number;
         rating: number;
         content: string;
@@ -80,5 +81,17 @@ export class ReviewsService {
             null,
             true
         );
+    }
+
+    /**
+     * Upload image for an existing review using the update endpoint
+     * Note: Backend ReviewImageUploadView exists but URL pattern is not registered in urls.py
+     * Fallback: Use regular update endpoint which supports multipart/form-data
+     */
+    static async uploadReviewImage(reviewId: number, image: File): Promise<Review> {
+        const formData = new FormData();
+        formData.append('image', image);
+        // Use update endpoint since /image-upload/ is not registered in backend urls.py
+        return await apiClient.put<Review>(`/api/reviews/${reviewId}/update/`, formData, true);
     }
 }

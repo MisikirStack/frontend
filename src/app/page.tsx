@@ -24,9 +24,11 @@ import { Navbar } from "@/components/navbar";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { useBusinesses, useStats, useFavorites, useCategories, useBusinessSearch } from "@/hooks/use-api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Home() {
   const router = useRouter();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [selectedLocation, setSelectedLocation] = useState<string | undefined>();
@@ -870,7 +872,13 @@ export default function Home() {
                 potential customers every day
               </p>
               <Button
-                onClick={() => router.push("/register-business")}
+                onClick={() => {
+                  if (user) {
+                    router.push("/company/setup");
+                  } else {
+                    router.push("/login?redirect=/company/setup");
+                  }
+                }}
                 className="bg-white px-8 py-6 text-lg font-bold text-green-700 hover:bg-green-50"
                 size="lg"
               >
@@ -924,9 +932,18 @@ export default function Home() {
               </h3>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/register-business" className="text-muted-foreground hover:text-green-600 dark:hover:text-green-500 transition-colors">
+                  <button
+                    onClick={() => {
+                      if (user) {
+                        router.push("/company/setup");
+                      } else {
+                        router.push("/login?redirect=/company/setup");
+                      }
+                    }}
+                    className="text-muted-foreground hover:text-green-600 dark:hover:text-green-500 transition-colors text-left"
+                  >
                     Register Your Business
-                  </Link>
+                  </button>
                 </li>
                 <li>
                   <Link href="/login" className="text-muted-foreground hover:text-green-600 dark:hover:text-green-500 transition-colors">

@@ -176,3 +176,57 @@ All API services are now:
 - ‚úÖ Supporting file uploads
 
 Let's proceed to integrate the dashboard! üöÄ
+
+---
+
+## ‚è≥ Features Pending Backend Support (Updated Nov 14, 2025)
+
+### 1. Categories and Regions Endpoints ‚ö†Ô∏è CRITICAL
+**Status**: Missing - Returns 404  
+**Required Endpoints**:
+- `GET /api/categories/`
+- `GET /api/subcategories/?category=<id>`
+- `GET /api/regions/`
+- `GET /api/subregions/?region=<id>`
+
+**Frontend Status**: ‚úÖ Service created, graceful fallback  
+**Impact**: Users can't select categories/regions during registration  
+
+---
+
+### 2. Company Reviews Endpoint ‚ö†Ô∏è CRITICAL
+**Status**: Missing  
+**Required**: `GET /api/companies/{id}/reviews/`  
+**Frontend Status**: ‚úÖ Shows count, informative message  
+**Impact**: Can't display individual reviews  
+
+---
+
+### 3. Contact Info GET Endpoint
+**Status**: Missing (only UPDATE exists)  
+**Required**: `GET /api/companies/{id}/contact-info/`  
+**Frontend Status**: ‚ö†Ô∏è Shows owner_email only  
+
+---
+
+### 4. Address GET Endpoint
+**Status**: Missing (only CREATE exists)  
+**Required**: `GET /api/companies/{id}/addresses/`  
+
+---
+
+### 5-8. Other Issues
+See **[FRONTEND_BACKEND_TODO.md](./FRONTEND_BACKEND_TODO.md)** for complete list
+
+---
+
+## Ì≥Ñ NEW: Comprehensive Documentation
+
+**[FRONTEND_BACKEND_TODO.md](./FRONTEND_BACKEND_TODO.md)** - Complete breakdown:
+- ‚úÖ Conversation summary
+- Ì¥¥ 7 Critical backend issues  
+- Ìø° 5 Backend improvements
+- Ìø¢ 12+ Frontend improvements (can do now)
+- Ì≥ä Testing needs & priorities
+- Ì∫Ä Deployment checklist
+

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, Award, Calendar, Edit2, Save, X, Building2, Trash2, Plus, Star, MapPin } from "lucide-react";
+import { User, Award, Calendar, Edit2, Save, X, Building2, Trash2, Plus, Star, MapPin, Settings, Lock, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,9 +26,9 @@ import {
 } from "@/components/ui/dialog";
 import { Navbar } from "@/components/navbar";
 import { useAuth } from "@/contexts/AuthContext";
-import { AuthService, CompaniesService } from "@/services/api";
+import { AuthService, CompaniesService, SearchService } from "@/services/api";
 import { toast } from "sonner";
-import type { CompanyList } from "@/types/api";
+import type { CompanyList, UserRole } from "@/types/api";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -41,10 +41,13 @@ export default function ProfilePage() {
 
     // Companies state
     const [companies, setCompanies] = useState<CompanyList[]>([]);
+    const [allCompanies, setAllCompanies] = useState<CompanyList[]>([]); // For admin
     const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+    const [isLoadingAllCompanies, setIsLoadingAllCompanies] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [companyToDelete, setCompanyToDelete] = useState<CompanyList | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [companiesSubTab, setCompaniesSubTab] = useState<"owned" | "all">("owned");
 
     const [formData, setFormData] = useState({
         name: "",
@@ -52,12 +55,19 @@ export default function ProfilePage() {
         telegram_username: "",
     });
 
+    // Check if user is admin (hardcoded for admin@ex.com)
+    const isAdmin = user?.email === "admin@ex.com";
+
     // Load user's companies when companies tab is active
     useEffect(() => {
         if (activeTab === "companies" && isAuthenticated) {
-            loadCompanies();
+            if (isAdmin && companiesSubTab === "all") {
+                loadAllCompanies();
+            } else {
+                loadCompanies();
+            }
         }
-    }, [activeTab, isAuthenticated]);
+    }, [activeTab, isAuthenticated, isAdmin, companiesSubTab]);
 
     const loadCompanies = async () => {
         setIsLoadingCompanies(true);
@@ -69,6 +79,32 @@ export default function ProfilePage() {
             console.error(err);
         } finally {
             setIsLoadingCompanies(false);
+        }
+    };
+
+    const loadAllCompanies = async () => {
+        setIsLoadingAllCompanies(true);
+        try {
+            // Get all companies (admin view)
+            const response = await SearchService.searchCompanies({});
+            setAllCompanies(response.results || []);
+        } catch (err) {
+            toast.error("Failed to load all companies");
+            console.error(err);
+        } finally {
+            setIsLoadingAllCompanies(false);
+        }
+    };
+
+    const handleFeatureToggle = async (companyId: number, currentStatus: boolean) => {
+        try {
+            await CompaniesService.toggleFeatured(companyId, !currentStatus);
+            toast.success(`Company ${!currentStatus ? 'featured' : 'unfeatured'} successfully`);
+            if (companiesSubTab === "all") {
+                loadAllCompanies();
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Failed to update featured status");
         }
     };
 
@@ -142,10 +178,16 @@ export default function ProfilePage() {
             setDeleteDialogOpen(false);
             setCompanyToDelete(null);
             // Reload companies list
-            loadCompanies();
+            if (companiesSubTab === "all") {
+                loadAllCompanies();
+            } else {
+                loadCompanies();
+            }
         } catch (err: any) {
             console.error("Failed to delete company:", err);
-            toast.error(err.message || "Failed to delete company");
+            toast.error(err.message || "Failed to delete company", {
+                description: "This feature is not available yet. Please contact support to delete a company."
+            });
         } finally {
             setIsDeleting(false);
         }
@@ -197,7 +239,7 @@ export default function ProfilePage() {
                                 </p>
                                 <div className="mt-3 flex justify-center gap-2">
                                     <Badge variant="outline" className="text-sm">
-                                        {user.role.replace(/_/g, " ")}
+                                        {isAdmin ? "Admin" : user.role.replace(/_/g, " ")}
                                     </Badge>
                                     <Badge
                                         variant={user.is_active ? "default" : "secondary"}
@@ -210,15 +252,19 @@ export default function ProfilePage() {
 
                             {/* Tabs */}
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                                <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+                                <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
                                     <TabsTrigger value="profile">Profile</TabsTrigger>
                                     <TabsTrigger value="companies">
-                                        My Companies
-                                        {companies.length > 0 && (
+                                        {isAdmin ? "Companies" : "My Companies"}
+                                        {companies.length > 0 && !isAdmin && (
                                             <Badge variant="secondary" className="ml-2">
                                                 {companies.length}
                                             </Badge>
                                         )}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="settings">
+                                        <Settings className="mr-2 h-4 w-4" />
+                                        Settings
                                     </TabsTrigger>
                                 </TabsList>
 
@@ -230,7 +276,566 @@ export default function ProfilePage() {
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <CardTitle className="text-green-700 dark:text-green-400">Personal Information</CardTitle>
-                                                    <CardDescription>Manage your account details</CardDescription>
+                                                    <CardDescription>View your account details</CardDescription>
+                                                </div>
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => setActiveTab("settings")}
+                                                >
+                                                    <Edit2 className="mr-2 h-4 w-4" />
+                                                    Edit Profile
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Full Name</Label>
+                                                <p className="text-base font-medium">{user.name}</p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Email</Label>
+                                                <p className="text-base font-medium">{user.email}</p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Phone Number</Label>
+                                                <p className="text-base font-medium">
+                                                    {user.phone || <span className="text-muted-foreground">Not provided</span>}
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Telegram Username</Label>
+                                                <p className="text-base font-medium">
+                                                    {user.telegram_username || <span className="text-muted-foreground">Not provided</span>}
+                                                </p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Account Stats Card */}
+                                    <Card className="border-green-200 dark:border-green-900/30">
+                                        <CardHeader>
+                                            <CardTitle className="text-green-700 dark:text-green-400">Account Statistics</CardTitle>
+                                            <CardDescription>Your activity on Misikir</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className={`grid gap-4 ${isAdmin ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+                                                {!isAdmin && (
+                                                    <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900/50">
+                                                        <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                                            <Award className="h-6 w-6 text-green-600 dark:text-green-500" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-3xl font-bold text-green-700 dark:text-green-500">
+                                                                {user.point}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">Points Earned</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900/50">
+                                                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                                        <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold">Member Since</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {new Date(user.date_joined).toLocaleDateString("en-US", {
+                                                                month: "short",
+                                                                year: "numeric"
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-900/50">
+                                                    <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                                        <User className="h-6 w-6 text-purple-600 dark:text-purple-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold">Role</p>
+                                                        <p className="text-xs text-muted-foreground capitalize">
+                                                            {isAdmin ? "Admin" : user.role.replace(/_/g, " ").toLowerCase()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+
+                                {/* Companies Tab */}
+                                <TabsContent value="companies" className="space-y-6">
+                                    {isAdmin ? (
+                                        <>
+                                            {/* Admin View */}
+                                            <div>
+                                                <h2 className="text-2xl font-bold text-green-800 dark:text-green-400">Companies Management</h2>
+                                                <p className="text-muted-foreground">Manage all companies on the platform</p>
+                                            </div>
+
+                                            {/* Sub-tabs for Admin */}
+                                            <Tabs value={companiesSubTab} onValueChange={(value) => setCompaniesSubTab(value as "owned" | "all")} className="space-y-4">
+                                                <TabsList>
+                                                    <TabsTrigger value="owned">
+                                                        Owned by You
+                                                        {companies.length > 0 && (
+                                                            <Badge variant="secondary" className="ml-2">
+                                                                {companies.length}
+                                                            </Badge>
+                                                        )}
+                                                    </TabsTrigger>
+                                                    <TabsTrigger value="all">
+                                                        All Companies
+                                                        {allCompanies.length > 0 && (
+                                                            <Badge variant="secondary" className="ml-2">
+                                                                {allCompanies.length}
+                                                            </Badge>
+                                                        )}
+                                                    </TabsTrigger>
+                                                </TabsList>
+
+                                                {/* Owned by You Tab */}
+                                                <TabsContent value="owned" className="space-y-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="text-sm text-muted-foreground">Companies you own</p>
+                                                        <Button
+                                                            onClick={() => {
+                                                                if (user) {
+                                                                    router.push("/company/setup");
+                                                                } else {
+                                                                    router.push("/login?redirect=/company/setup");
+                                                                }
+                                                            }}
+                                                            className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                                                        >
+                                                            <Plus className="mr-2 h-4 w-4" />
+                                                            Add Company
+                                                        </Button>
+                                                    </div>
+
+                                                    {isLoadingCompanies ? (
+                                                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                                            {[1, 2, 3].map((i) => (
+                                                                <Card key={i} className="animate-pulse">
+                                                                    <CardHeader className="pb-4">
+                                                                        <div className="h-12 w-12 rounded-md bg-muted mb-2"></div>
+                                                                        <div className="h-6 w-3/4 bg-muted rounded"></div>
+                                                                    </CardHeader>
+                                                                    <CardContent>
+                                                                        <div className="space-y-2">
+                                                                            <div className="h-4 w-full bg-muted rounded"></div>
+                                                                            <div className="h-4 w-2/3 bg-muted rounded"></div>
+                                                                        </div>
+                                                                    </CardContent>
+                                                                </Card>
+                                                            ))}
+                                                        </div>
+                                                    ) : companies.length === 0 ? (
+                                                        <Card className="border-2 border-dashed">
+                                                            <CardContent className="flex flex-col items-center justify-center py-12">
+                                                                <div className="rounded-full bg-muted p-6 mb-4">
+                                                                    <Building2 className="h-12 w-12 text-muted-foreground" />
+                                                                </div>
+                                                                <h3 className="text-lg font-semibold mb-2">No companies yet</h3>
+                                                                <p className="text-sm text-muted-foreground text-center mb-4 max-w-sm">
+                                                                    Register your first business to start building your presence on Misikir
+                                                                </p>
+                                                                <Button
+                                                                    onClick={() => {
+                                                                        if (user) {
+                                                                            router.push("/company/setup");
+                                                                        } else {
+                                                                            router.push("/login?redirect=/company/setup");
+                                                                        }
+                                                                    }}
+                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                >
+                                                                    <Plus className="mr-2 h-4 w-4" />
+                                                                    Register Your First Business
+                                                                </Button>
+                                                            </CardContent>
+                                                        </Card>
+                                                    ) : (
+                                                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                                            {companies.map((company) => (
+                                                                <Card
+                                                                    key={company.id}
+                                                                    className="hover:shadow-lg transition-all cursor-pointer border-green-200 dark:border-green-900/30 group"
+                                                                >
+                                                                    <CardHeader className="pb-4">
+                                                                        <div className="flex items-start justify-between">
+                                                                            <div
+                                                                                className="flex-1"
+                                                                                onClick={() => router.push(`/business/${company.id}`)}
+                                                                            >
+                                                                                {company.logo_url ? (
+                                                                                    <img
+                                                                                        src={company.logo_url}
+                                                                                        alt={company.name}
+                                                                                        className="h-12 w-12 rounded-md object-cover mb-2"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div className="h-12 w-12 rounded-md bg-green-100 dark:bg-green-900/20 flex items-center justify-center text-green-700 dark:text-green-400 font-semibold mb-2">
+                                                                                        {company.name.substring(0, 2).toUpperCase()}
+                                                                                    </div>
+                                                                                )}
+                                                                                <CardTitle className="line-clamp-1 text-lg group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                                                                                    {company.name}
+                                                                                </CardTitle>
+                                                                            </div>
+                                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    onClick={() => router.push(`/business/${company.id}`)}
+                                                                                    className="h-8 w-8"
+                                                                                >
+                                                                                    <Edit2 className="h-4 w-4" />
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDeleteClick(company);
+                                                                                    }}
+                                                                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                                                >
+                                                                                    <Trash2 className="h-4 w-4" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </CardHeader>
+                                                                    <CardContent
+                                                                        className="space-y-3"
+                                                                        onClick={() => router.push(`/business/${company.id}`)}
+                                                                    >
+                                                                        <div className="flex items-center text-sm text-muted-foreground">
+                                                                            <Badge variant="outline" className="text-xs">
+                                                                                {company.category_names}
+                                                                            </Badge>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between text-sm">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                                                                <span className="font-medium">{company.misikir_score}</span>
+                                                                            </div>
+                                                                            <span className="text-muted-foreground">
+                                                                                {company.misikir_reviews_count} {company.misikir_reviews_count === 1 ? "review" : "reviews"}
+                                                                            </span>
+                                                                        </div>
+                                                                        {company.description && (
+                                                                            <p className="text-sm text-muted-foreground line-clamp-2">
+                                                                                {company.description}
+                                                                            </p>
+                                                                        )}
+                                                                    </CardContent>
+                                                                </Card>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </TabsContent>
+
+                                                {/* All Companies Tab (Admin Only) */}
+                                                <TabsContent value="all" className="space-y-4">
+                                                    <p className="text-sm text-muted-foreground">All companies registered on the platform</p>
+
+                                                    {isLoadingAllCompanies ? (
+                                                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                                            {[1, 2, 3, 4, 5, 6].map((i) => (
+                                                                <Card key={i} className="animate-pulse">
+                                                                    <CardHeader className="pb-4">
+                                                                        <div className="h-12 w-12 rounded-md bg-muted mb-2"></div>
+                                                                        <div className="h-6 w-3/4 bg-muted rounded"></div>
+                                                                    </CardHeader>
+                                                                    <CardContent>
+                                                                        <div className="space-y-2">
+                                                                            <div className="h-4 w-full bg-muted rounded"></div>
+                                                                            <div className="h-4 w-2/3 bg-muted rounded"></div>
+                                                                        </div>
+                                                                    </CardContent>
+                                                                </Card>
+                                                            ))}
+                                                        </div>
+                                                    ) : allCompanies.length === 0 ? (
+                                                        <Card className="border-2 border-dashed">
+                                                            <CardContent className="flex flex-col items-center justify-center py-12">
+                                                                <div className="rounded-full bg-muted p-6 mb-4">
+                                                                    <Building2 className="h-12 w-12 text-muted-foreground" />
+                                                                </div>
+                                                                <h3 className="text-lg font-semibold mb-2">No companies found</h3>
+                                                                <p className="text-sm text-muted-foreground text-center">
+                                                                    No companies are registered on the platform yet.
+                                                                </p>
+                                                            </CardContent>
+                                                        </Card>
+                                                    ) : (
+                                                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                                            {allCompanies.map((company) => (
+                                                                <Card
+                                                                    key={company.id}
+                                                                    className="hover:shadow-lg transition-all border-green-200 dark:border-green-900/30 group"
+                                                                >
+                                                                    <CardHeader className="pb-4">
+                                                                        <div className="flex items-start justify-between">
+                                                                            <div className="flex-1">
+                                                                                {company.logo_url ? (
+                                                                                    <img
+                                                                                        src={company.logo_url}
+                                                                                        alt={company.name}
+                                                                                        className="h-12 w-12 rounded-md object-cover mb-2"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div className="h-12 w-12 rounded-md bg-green-100 dark:bg-green-900/20 flex items-center justify-center text-green-700 dark:text-green-400 font-semibold mb-2">
+                                                                                        {company.name.substring(0, 2).toUpperCase()}
+                                                                                    </div>
+                                                                                )}
+                                                                                <CardTitle className="line-clamp-1 text-lg">
+                                                                                    {company.name}
+                                                                                </CardTitle>
+                                                                                {company.is_featured && (
+                                                                                    <Badge className="mt-1 bg-yellow-500 hover:bg-yellow-600">
+                                                                                        Featured
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    onClick={() => router.push(`/business/${company.id}`)}
+                                                                                    className="h-8 w-8"
+                                                                                    title="View/Edit"
+                                                                                >
+                                                                                    <Edit2 className="h-4 w-4" />
+                                                                                </Button>
+                                                                                {isAdmin && (
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleFeatureToggle(company.id, company.is_featured);
+                                                                                        }}
+                                                                                        className="h-8 w-8"
+                                                                                        title={company.is_featured ? "Unfeature" : "Feature"}
+                                                                                    >
+                                                                                        {company.is_featured ? (
+                                                                                            <XCircle className="h-4 w-4 text-orange-600" />
+                                                                                        ) : (
+                                                                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                                                                        )}
+                                                                                    </Button>
+                                                                                )}
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDeleteClick(company);
+                                                                                    }}
+                                                                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                                                    title="Delete"
+                                                                                >
+                                                                                    <Trash2 className="h-4 w-4" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </CardHeader>
+                                                                    <CardContent className="space-y-3">
+                                                                        <div className="flex items-center text-sm text-muted-foreground">
+                                                                            <Badge variant="outline" className="text-xs">
+                                                                                {company.category_names}
+                                                                            </Badge>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between text-sm">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                                                                <span className="font-medium">{company.misikir_score}</span>
+                                                                            </div>
+                                                                            <span className="text-muted-foreground">
+                                                                                {company.misikir_reviews_count} {company.misikir_reviews_count === 1 ? "review" : "reviews"}
+                                                                            </span>
+                                                                        </div>
+                                                                        {company.description && (
+                                                                            <p className="text-sm text-muted-foreground line-clamp-2">
+                                                                                {company.description}
+                                                                            </p>
+                                                                        )}
+                                                                    </CardContent>
+                                                                </Card>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </TabsContent>
+                                            </Tabs>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {/* Regular User View */}
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <h2 className="text-2xl font-bold text-green-800 dark:text-green-400">My Companies</h2>
+                                                    <p className="text-muted-foreground">Manage your registered businesses</p>
+                                                </div>
+                                                <Button
+                                                    onClick={() => {
+                                                        if (user) {
+                                                            router.push("/company/setup");
+                                                        } else {
+                                                            router.push("/login?redirect=/company/setup");
+                                                        }
+                                                    }}
+                                                    className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                                                >
+                                                    <Plus className="mr-2 h-4 w-4" />
+                                                    Add Company
+                                                </Button>
+                                            </div>
+
+                                            {isLoadingCompanies ? (
+                                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                                    {[1, 2, 3].map((i) => (
+                                                        <Card key={i} className="animate-pulse">
+                                                            <CardHeader className="pb-4">
+                                                                <div className="h-12 w-12 rounded-md bg-muted mb-2"></div>
+                                                                <div className="h-6 w-3/4 bg-muted rounded"></div>
+                                                            </CardHeader>
+                                                            <CardContent>
+                                                                <div className="space-y-2">
+                                                                    <div className="h-4 w-full bg-muted rounded"></div>
+                                                                    <div className="h-4 w-2/3 bg-muted rounded"></div>
+                                                                </div>
+                                                            </CardContent>
+                                                        </Card>
+                                                    ))}
+                                                </div>
+                                            ) : companies.length === 0 ? (
+                                                <Card className="border-2 border-dashed">
+                                                    <CardContent className="flex flex-col items-center justify-center py-12">
+                                                        <div className="rounded-full bg-muted p-6 mb-4">
+                                                            <Building2 className="h-12 w-12 text-muted-foreground" />
+                                                        </div>
+                                                        <h3 className="text-lg font-semibold mb-2">No companies yet</h3>
+                                                        <p className="text-sm text-muted-foreground text-center mb-4 max-w-sm">
+                                                            Register your first business to start building your presence on Misikir
+                                                        </p>
+                                                        <Button
+                                                            onClick={() => {
+                                                                if (user) {
+                                                                    router.push("/company/setup");
+                                                                } else {
+                                                                    router.push("/login?redirect=/company/setup");
+                                                                }
+                                                            }}
+                                                            className="bg-green-600 hover:bg-green-700"
+                                                        >
+                                                            <Plus className="mr-2 h-4 w-4" />
+                                                            Register Your First Business
+                                                        </Button>
+                                                    </CardContent>
+                                                </Card>
+                                            ) : (
+                                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                                    {companies.map((company) => (
+                                                        <Card
+                                                            key={company.id}
+                                                            className="hover:shadow-lg transition-all cursor-pointer border-green-200 dark:border-green-900/30 group"
+                                                        >
+                                                            <CardHeader className="pb-4">
+                                                                <div className="flex items-start justify-between">
+                                                                    <div
+                                                                        className="flex-1"
+                                                                        onClick={() => router.push(`/business/${company.id}`)}
+                                                                    >
+                                                                        {company.logo_url ? (
+                                                                            <img
+                                                                                src={company.logo_url}
+                                                                                alt={company.name}
+                                                                                className="h-12 w-12 rounded-md object-cover mb-2"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="h-12 w-12 rounded-md bg-green-100 dark:bg-green-900/20 flex items-center justify-center text-green-700 dark:text-green-400 font-semibold mb-2">
+                                                                                {company.name.substring(0, 2).toUpperCase()}
+                                                                            </div>
+                                                                        )}
+                                                                        <CardTitle className="line-clamp-1 text-lg group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                                                                            {company.name}
+                                                                        </CardTitle>
+                                                                    </div>
+                                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={() => router.push(`/business/${company.id}`)}
+                                                                            className="h-8 w-8"
+                                                                        >
+                                                                            <Edit2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleDeleteClick(company);
+                                                                            }}
+                                                                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </CardHeader>
+                                                            <CardContent
+                                                                className="space-y-3"
+                                                                onClick={() => router.push(`/business/${company.id}`)}
+                                                            >
+                                                                <div className="flex items-center text-sm text-muted-foreground">
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {company.category_names}
+                                                                    </Badge>
+                                                                </div>
+                                                                <div className="flex items-center justify-between text-sm">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                                                        <span className="font-medium">{company.misikir_score}</span>
+                                                                    </div>
+                                                                    <span className="text-muted-foreground">
+                                                                        {company.misikir_reviews_count} {company.misikir_reviews_count === 1 ? "review" : "reviews"}
+                                                                    </span>
+                                                                </div>
+                                                                {company.description && (
+                                                                    <p className="text-sm text-muted-foreground line-clamp-2">
+                                                                        {company.description}
+                                                                    </p>
+                                                                )}
+                                                            </CardContent>
+                                                        </Card>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </TabsContent>
+
+                                {/* Settings Tab */}
+                                <TabsContent value="settings" className="space-y-6">
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-green-800 dark:text-green-400">Account Settings</h2>
+                                        <p className="text-muted-foreground">Manage your profile information and security</p>
+                                    </div>
+
+                                    {/* Edit Profile Section */}
+                                    <Card className="border-green-200 dark:border-green-900/30">
+                                        <CardHeader>
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <CardTitle className="text-green-700 dark:text-green-400">Edit Profile</CardTitle>
+                                                    <CardDescription>Update your personal information</CardDescription>
                                                 </div>
                                                 {!isEditing ? (
                                                     <Button
@@ -264,9 +869,9 @@ export default function ProfilePage() {
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="name">Full Name</Label>
+                                                <Label htmlFor="name-settings">Full Name</Label>
                                                 <Input
-                                                    id="name"
+                                                    id="name-settings"
                                                     name="name"
                                                     value={formData.name}
                                                     onChange={handleInputChange}
@@ -277,9 +882,9 @@ export default function ProfilePage() {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <Label htmlFor="email">Email</Label>
+                                                <Label htmlFor="email-settings">Email</Label>
                                                 <Input
-                                                    id="email"
+                                                    id="email-settings"
                                                     value={user.email}
                                                     disabled
                                                     className="bg-muted h-12"
@@ -290,9 +895,9 @@ export default function ProfilePage() {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <Label htmlFor="phone">Phone Number</Label>
+                                                <Label htmlFor="phone-settings">Phone Number</Label>
                                                 <Input
-                                                    id="phone"
+                                                    id="phone-settings"
                                                     name="phone"
                                                     type="tel"
                                                     value={formData.phone}
@@ -304,9 +909,9 @@ export default function ProfilePage() {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <Label htmlFor="telegram_username">Telegram Username</Label>
+                                                <Label htmlFor="telegram-settings">Telegram Username</Label>
                                                 <Input
-                                                    id="telegram_username"
+                                                    id="telegram-settings"
                                                     name="telegram_username"
                                                     value={formData.telegram_username}
                                                     onChange={handleInputChange}
@@ -318,188 +923,68 @@ export default function ProfilePage() {
                                         </CardContent>
                                     </Card>
 
-                                    {/* Account Stats Card */}
-                                    <Card className="border-green-200 dark:border-green-900/30">
+                                    {/* Change Password Section - Coming Soon */}
+                                    <Card className="border-green-200 dark:border-green-900/30 opacity-60">
                                         <CardHeader>
-                                            <CardTitle className="text-green-700 dark:text-green-400">Account Statistics</CardTitle>
-                                            <CardDescription>Your activity on Misikir</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="grid gap-4 sm:grid-cols-3">
-                                                <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900/50">
-                                                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                                                        <Award className="h-6 w-6 text-green-600 dark:text-green-500" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-3xl font-bold text-green-700 dark:text-green-500">
-                                                            {user.point}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">Points Earned</p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900/50">
-                                                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                                        <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-500" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-semibold">Member Since</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {new Date(user.date_joined).toLocaleDateString("en-US", {
-                                                                month: "short",
-                                                                year: "numeric"
-                                                            })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-900/50">
-                                                    <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                                                        <User className="h-6 w-6 text-purple-600 dark:text-purple-500" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-semibold">Role</p>
-                                                        <p className="text-xs text-muted-foreground capitalize">
-                                                            {user.role.replace(/_/g, " ").toLowerCase()}
-                                                        </p>
-                                                    </div>
+                                            <div className="flex items-center gap-2">
+                                                <Lock className="h-5 w-5 text-green-600 dark:text-green-500" />
+                                                <div>
+                                                    <CardTitle className="text-green-700 dark:text-green-400">Change Password</CardTitle>
+                                                    <CardDescription>Update your account password</CardDescription>
                                                 </div>
                                             </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="bg-muted p-4 rounded-lg border border-dashed">
+                                                <p className="text-sm text-muted-foreground text-center">
+                                                    🔧 Password change feature is coming soon!
+                                                    <br />
+                                                    <span className="text-xs">The backend endpoint is being developed.</span>
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-2 pointer-events-none">
+                                                <Label htmlFor="current_password">Current Password</Label>
+                                                <Input
+                                                    id="current_password"
+                                                    type="password"
+                                                    disabled
+                                                    placeholder="Enter current password"
+                                                    className="h-12"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2 pointer-events-none">
+                                                <Label htmlFor="new_password">New Password</Label>
+                                                <Input
+                                                    id="new_password"
+                                                    type="password"
+                                                    disabled
+                                                    placeholder="Enter new password (min 8 characters)"
+                                                    className="h-12"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2 pointer-events-none">
+                                                <Label htmlFor="confirm_password">Confirm New Password</Label>
+                                                <Input
+                                                    id="confirm_password"
+                                                    type="password"
+                                                    disabled
+                                                    placeholder="Confirm new password"
+                                                    className="h-12"
+                                                />
+                                            </div>
+
+                                            <Button
+                                                disabled
+                                                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 w-full"
+                                            >
+                                                <Lock className="mr-2 h-4 w-4" />
+                                                Change Password (Coming Soon)
+                                            </Button>
                                         </CardContent>
                                     </Card>
-                                </TabsContent>
-
-                                {/* Companies Tab */}
-                                <TabsContent value="companies" className="space-y-6">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-green-800 dark:text-green-400">My Companies</h2>
-                                            <p className="text-muted-foreground">Manage your registered businesses</p>
-                                        </div>
-                                        <Button
-                                            onClick={() => router.push("/register-business")}
-                                            className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
-                                        >
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Add Company
-                                        </Button>
-                                    </div>
-
-                                    {isLoadingCompanies ? (
-                                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                                            {[1, 2, 3].map((i) => (
-                                                <Card key={i} className="animate-pulse">
-                                                    <CardHeader className="pb-4">
-                                                        <div className="h-12 w-12 rounded-md bg-muted mb-2"></div>
-                                                        <div className="h-6 w-3/4 bg-muted rounded"></div>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        <div className="space-y-2">
-                                                            <div className="h-4 w-full bg-muted rounded"></div>
-                                                            <div className="h-4 w-2/3 bg-muted rounded"></div>
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    ) : companies.length === 0 ? (
-                                        <Card className="border-2 border-dashed">
-                                            <CardContent className="flex flex-col items-center justify-center py-12">
-                                                <div className="rounded-full bg-muted p-6 mb-4">
-                                                    <Building2 className="h-12 w-12 text-muted-foreground" />
-                                                </div>
-                                                <h3 className="text-lg font-semibold mb-2">No companies yet</h3>
-                                                <p className="text-sm text-muted-foreground text-center mb-4 max-w-sm">
-                                                    Register your first business to start building your presence on Misikir
-                                                </p>
-                                                <Button
-                                                    onClick={() => router.push("/register-business")}
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                >
-                                                    <Plus className="mr-2 h-4 w-4" />
-                                                    Register Your First Business
-                                                </Button>
-                                            </CardContent>
-                                        </Card>
-                                    ) : (
-                                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                                            {companies.map((company) => (
-                                                <Card
-                                                    key={company.id}
-                                                    className="hover:shadow-lg transition-all cursor-pointer border-green-200 dark:border-green-900/30 group"
-                                                >
-                                                    <CardHeader className="pb-4">
-                                                        <div className="flex items-start justify-between">
-                                                            <div
-                                                                className="flex-1"
-                                                                onClick={() => router.push(`/business/${company.id}`)}
-                                                            >
-                                                                {company.logo_url ? (
-                                                                    <img
-                                                                        src={company.logo_url}
-                                                                        alt={company.name}
-                                                                        className="h-12 w-12 rounded-md object-cover mb-2"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="h-12 w-12 rounded-md bg-green-100 dark:bg-green-900/20 flex items-center justify-center text-green-700 dark:text-green-400 font-semibold mb-2">
-                                                                        {company.name.substring(0, 2).toUpperCase()}
-                                                                    </div>
-                                                                )}
-                                                                <CardTitle className="line-clamp-1 text-lg group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                                                                    {company.name}
-                                                                </CardTitle>
-                                                            </div>
-                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => router.push(`/business/${company.id}`)}
-                                                                    className="h-8 w-8"
-                                                                >
-                                                                    <Edit2 className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleDeleteClick(company);
-                                                                    }}
-                                                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </CardHeader>
-                                                    <CardContent
-                                                        className="space-y-3"
-                                                        onClick={() => router.push(`/business/${company.id}`)}
-                                                    >
-                                                        <div className="flex items-center text-sm text-muted-foreground">
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {company.category_names}
-                                                            </Badge>
-                                                        </div>
-                                                        <div className="flex items-center justify-between text-sm">
-                                                            <div className="flex items-center gap-1">
-                                                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                                                <span className="font-medium">{company.misikir_score}</span>
-                                                            </div>
-                                                            <span className="text-muted-foreground">
-                                                                {company.misikir_reviews_count} {company.misikir_reviews_count === 1 ? "review" : "reviews"}
-                                                            </span>
-                                                        </div>
-                                                        {company.description && (
-                                                            <p className="text-sm text-muted-foreground line-clamp-2">
-                                                                {company.description}
-                                                            </p>
-                                                        )}
-                                                    </CardContent>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    )}
                                 </TabsContent>
                             </Tabs>
                         </div>

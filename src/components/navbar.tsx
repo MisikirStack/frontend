@@ -93,7 +93,11 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
     };
 
     const navigateToRegisterBusiness = () => {
-        router.push("/register-business");
+        if (user) {
+            router.push("/company/setup");
+        } else {
+            router.push("/login?redirect=/company/setup");
+        }
         setMobileMenuOpen(false);
     };
 
@@ -211,6 +215,18 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                         Write a Review
                     </Button>
 
+                    {/* Register Business Button (only when logged in) */}
+                    {isAuthenticated && (
+                        <Button
+                            onClick={navigateToRegisterBusiness}
+                            variant="outline"
+                            className="border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-500 dark:hover:bg-green-950/20"
+                        >
+                            <Building2 className="mr-2 h-4 w-4" />
+                            Register Business
+                        </Button>
+                    )}
+
                     {/* Language Toggle */}
                     <LanguageToggle />
 
@@ -245,11 +261,13 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                             <p className="font-medium">{user.name}</p>
                                             <p className="text-sm text-muted-foreground">{user.email}</p>
                                             <p className="text-xs text-muted-foreground">
-                                                Role: {user.role.replace(/_/g, " ")}
+                                                Role: {user.email === "admin@ex.com" ? "Admin" : user.role.replace(/_/g, " ")}
                                             </p>
-                                            <p className="text-xs font-medium text-green-600 dark:text-green-400">
-                                                Points: {user.point}
-                                            </p>
+                                            {user.email !== "admin@ex.com" && (
+                                                <p className="text-xs font-medium text-green-600 dark:text-green-400">
+                                                    Points: {user.point}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                     <DropdownMenuSeparator />
@@ -260,7 +278,7 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                         <User className="mr-2 h-4 w-4" />
                                         Profile
                                     </DropdownMenuItem>
-                                    {(user.role === "COMPANY_OWNER" || user.role === "ADMIN") && (
+                                    {user.role === "COMPANY_OWNER" && user.email !== "admin@ex.com" && (
                                         <DropdownMenuItem
                                             onClick={navigateToMyCompanies}
                                             className="cursor-pointer"
@@ -280,8 +298,8 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                 </DropdownMenuContent>
                             </DropdownMenu>
 
-                            {/* Register Business Button (for company owners) */}
-                            {user.role === "COMPANY_OWNER" && (
+                            {/* Register Business Button (for company owners and admin) */}
+                            {(user.role === "COMPANY_OWNER" || user.email === "admin@ex.com") && (
                                 <Button
                                     onClick={navigateToRegisterBusiness}
                                     className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
@@ -298,10 +316,10 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                 Login
                             </Button>
                             <Button
-                                onClick={navigateToRegisterBusiness}
+                                onClick={() => router.push("/register-business")}
                                 className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
                             >
-                                Register Your Business
+                                Create Account
                             </Button>
                         </>
                     )}
@@ -393,7 +411,7 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                             </div>
                         </div>
 
-                        <div className="border-t pt-3">
+                        <div className="border-t pt-3 space-y-2">
                             {/* Write a Review Button */}
                             <Button
                                 variant="outline"
@@ -414,6 +432,18 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                 <Edit className="mr-2 h-4 w-4" />
                                 Write a Review
                             </Button>
+
+                            {/* Register Business Button (only when logged in) */}
+                            {isAuthenticated && (
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-start border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-500 dark:hover:bg-green-950/20"
+                                    onClick={navigateToRegisterBusiness}
+                                >
+                                    <Building2 className="mr-2 h-4 w-4" />
+                                    Register Business
+                                </Button>
+                            )}
                         </div>
 
                         <div className="border-t pt-3 mt-3">
@@ -424,9 +454,14 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                     <div className="py-3 px-2 border-t mt-3">
                                         <p className="font-medium">{user.name}</p>
                                         <p className="text-sm text-muted-foreground">{user.email}</p>
-                                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                            Points: {user.point}
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Role: {user.email === "admin@ex.com" ? "Admin" : user.role.replace(/_/g, " ")}
                                         </p>
+                                        {user.email !== "admin@ex.com" && (
+                                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                                Points: {user.point}
+                                            </p>
+                                        )}
                                     </div>
                                     <Button
                                         variant="ghost"
@@ -436,7 +471,7 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                         <User className="mr-2 h-4 w-4" />
                                         Profile
                                     </Button>
-                                    {(user.role === "COMPANY_OWNER" || user.role === "ADMIN") && (
+                                    {user.role === "COMPANY_OWNER" && user.email !== "admin@ex.com" && (
                                         <>
                                             <Button
                                                 variant="ghost"
@@ -455,6 +490,16 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                                 Add Company
                                             </Button>
                                         </>
+                                    )}
+                                    {user.email === "admin@ex.com" && (
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start"
+                                            onClick={navigateToRegisterBusiness}
+                                        >
+                                            <Building2 className="mr-2 h-4 w-4" />
+                                            Add Company
+                                        </Button>
                                     )}
                                     <Button
                                         variant="ghost"
@@ -476,9 +521,12 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                     </Button>
                                     <Button
                                         className="w-full justify-start bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 mt-2"
-                                        onClick={navigateToRegisterBusiness}
+                                        onClick={() => {
+                                            router.push("/register-business");
+                                            setMobileMenuOpen(false);
+                                        }}
                                     >
-                                        Register Your Business
+                                        Create Account
                                     </Button>
                                 </>
                             )}

@@ -34,11 +34,9 @@ export default function WriteReviewPage() {
     const { businesses, isLoading } = useBusinesses({});
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
-    const [rating, setRating] = useState(0);
-    const [hoveredRating, setHoveredRating] = useState(0);
-    const [reviewTitle, setReviewTitle] = useState("");
+    const [rating, setRating] = useState<number>(0); // 1-5 stars (integer only, matches backend RatingEnum)
     const [reviewText, setReviewText] = useState("");
-    const [wouldRecommend, setWouldRecommend] = useState<boolean | null>(null);
+    const [reviewImage, setReviewImage] = useState<File | null>(null);
 
     // Filter businesses based on search
     const filteredBusinesses = businesses.filter((business) =>
@@ -77,34 +75,37 @@ export default function WriteReviewPage() {
             return;
         }
 
-        if (!reviewTitle.trim()) {
-            toast.error("Please enter a review title");
-            return;
-        }
-
         if (!reviewText.trim()) {
             toast.error("Please write your review");
             return;
         }
 
-        if (wouldRecommend === null) {
-            toast.error("Please indicate if you would recommend this business");
+        if (!user) {
+            toast.error("User information not available");
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            // Create review data with the exact field names the backend expects
-            const reviewData = {
+            // Backend's dedicated image upload endpoint is not registered in urls.py
+            // So we can only submit reviews without images using JSON
+            const data = {
                 company: selectedBusiness.id,
-                rating: rating, // Backend expects 'rating' field (1-5 scale)
-                content: reviewText.trim(), // Backend expects 'content' field
-                title: reviewTitle.trim(), // Include title if backend accepts it
+                rating: rating,
+                content: reviewText.trim(),
             };
 
-            // Submit review to backend
-            await ReviewsService.createReview(reviewData);
+            if (reviewImage) {
+                toast.error("Image uploads are currently unavailable", {
+                    description: "Please submit your review without an image. The backend endpoint for image uploads is not configured.",
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Submit review (backend extracts user from JWT token)
+            await ReviewsService.createReview(data);
 
             toast.success("Review submitted successfully!", {
                 description: "Thank you for sharing your experience.",
@@ -346,9 +347,9 @@ export default function WriteReviewPage() {
                                     </div>
                                 )}
 
-                                {/* Your Rating */}
+                                {/* Your Rating (1-5 Stars) */}
                                 <div className="space-y-3">
-                                    <Label className="text-base font-semibold">Your Rating</Label>
+                                    <Label className="text-base font-semibold">Your Rating (Required)</Label>
                                     <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-3 p-4 bg-muted/30 rounded-lg">
                                         <div className="flex items-center gap-2">
                                             {[1, 2, 3, 4, 5].map((star) => (
@@ -356,48 +357,35 @@ export default function WriteReviewPage() {
                                                     key={star}
                                                     type="button"
                                                     onClick={() => setRating(star)}
-                                                    onMouseEnter={() => setHoveredRating(star)}
-                                                    onMouseLeave={() => setHoveredRating(0)}
                                                     className="transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded p-1"
+                                                    aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
                                                 >
                                                     <Star
-                                                        className={`h-10 w-10 transition-colors ${star <= (hoveredRating || rating)
+                                                        className={`h-10 w-10 transition-colors ${star <= rating
                                                             ? "fill-yellow-400 text-yellow-400"
-                                                            : "text-gray-300 dark:text-gray-600"
+                                                            : "text-gray-300 dark:text-gray-600 hover:text-yellow-200 dark:hover:text-yellow-600"
                                                             }`}
                                                     />
                                                 </button>
                                             ))}
                                         </div>
-                                        <span className="text-sm font-medium">
+                                        <div className="flex flex-col items-center sm:items-start">
                                             {rating > 0 ? (
-                                                <span className="text-foreground">
-                                                    {rating === 1 && "Poor"}
-                                                    {rating === 2 && "Fair"}
-                                                    {rating === 3 && "Good"}
-                                                    {rating === 4 && "Very Good"}
-                                                    {rating === 5 && "Excellent"}
-                                                </span>
+                                                <>
+                                                    <span className="text-lg font-bold text-foreground">
+                                                        {rating === 1 && "Poor"}
+                                                        {rating === 2 && "Fair"}
+                                                        {rating === 3 && "Good"}
+                                                        {rating === 4 && "Very Good"}
+                                                        {rating === 5 && "Excellent"}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">{rating} out of 5 stars</span>
+                                                </>
                                             ) : (
-                                                <span className="text-muted-foreground">Select rating</span>
+                                                <span className="text-sm text-muted-foreground">Click to rate</span>
                                             )}
-                                        </span>
+                                        </div>
                                     </div>
-                                </div>
-
-                                {/* Review Title */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="review-title" className="text-base font-semibold">
-                                        Review Title
-                                    </Label>
-                                    <Input
-                                        id="review-title"
-                                        placeholder="Summarize your experience"
-                                        value={reviewTitle}
-                                        onChange={(e) => setReviewTitle(e.target.value)}
-                                        className="h-12 text-base"
-                                        disabled={isSubmitting}
-                                    />
                                 </div>
 
                                 {/* Your Review */}
@@ -418,38 +406,32 @@ export default function WriteReviewPage() {
                                     </p>
                                 </div>
 
-                                {/* Would you recommend */}
-                                <div className="space-y-3">
-                                    <Label className="text-base font-semibold">
-                                        Would you recommend this business?
+                                {/* Review Image - DISABLED: Backend image upload endpoint not configured
+                                The ReviewImageUploadView exists in views.py but is NOT registered in urls.py
+                                <div className="space-y-2">
+                                    <Label htmlFor="review-image" className="text-base font-semibold">
+                                        Add Photo (Optional)
                                     </Label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Button
-                                            type="button"
-                                            variant={wouldRecommend === true ? "default" : "outline"}
-                                            className={`h-16 text-base font-semibold ${wouldRecommend === true
-                                                ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
-                                                : "hover:border-green-600 hover:text-green-600 dark:hover:border-green-500 dark:hover:text-green-500"
-                                                }`}
-                                            onClick={() => setWouldRecommend(true)}
-                                            disabled={isSubmitting}
-                                        >
-                                            Yes
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant={wouldRecommend === false ? "default" : "outline"}
-                                            className={`h-16 text-base font-semibold ${wouldRecommend === false
-                                                ? "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
-                                                : "hover:border-red-600 hover:text-red-600 dark:hover:border-red-500 dark:hover:text-red-500"
-                                                }`}
-                                            onClick={() => setWouldRecommend(false)}
-                                            disabled={isSubmitting}
-                                        >
-                                            No
-                                        </Button>
-                                    </div>
+                                    <Input
+                                        id="review-image"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setReviewImage(file);
+                                            }
+                                        }}
+                                        className="h-12 cursor-pointer"
+                                        disabled={isSubmitting}
+                                    />
+                                    {reviewImage && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Selected: {reviewImage.name}
+                                        </p>
+                                    )}
                                 </div>
+                                */}
 
                                 {/* Action Buttons */}
                                 <div className="flex flex-col sm:flex-row gap-3 pt-6">

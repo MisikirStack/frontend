@@ -22,6 +22,7 @@ export enum Rating {
 // ==================== Authentication ====================
 
 export interface User {
+    id?: number // User ID (returned by backend but not in schema)
     name: string
     email: string
     phone?: string | null
@@ -235,40 +236,37 @@ export interface ServiceRequest {
 
 export interface Review {
     id: number
-    reviewer_name: string
-    misikir_score: number
-    review_text: string
-    time: number
-    quality: number
-    quantity: number
-    trust: number
-    honesty: number
-    service: number
-    created_at: string
-    updated_at: string
+    user: number
+    username: string
     company: number
-    reviewer: number
+    company_name: string
+    rating: number // 1-5
+    content: string
+    image?: string | null
+    date: string
+    helpful_count: number
+    not_helpful_count: number
 }
 
 export interface ReviewList {
     id: number
-    reviewer_name: string
+    username: string
     company_name: string
-    misikir_score: number
-    review_text: string
-    created_at: string
+    rating: number
+    content: string
+    image?: string | null
+    image_url: string
+    date: string
+    helpful_count: number
+    not_helpful_count: number
 }
 
 export interface ReviewRequest {
-    reviewer: number
+    user: number
     company: number
-    review_text: string
-    time: number
-    quality: number
-    quantity: number
-    trust: number
-    honesty: number
-    service: number
+    rating: number // 1-5
+    content: string
+    image?: File | null
 }
 
 // ==================== Search & Pagination ====================

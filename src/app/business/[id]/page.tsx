@@ -26,6 +26,8 @@ import { toast } from "sonner"
 import { getUserFriendlyErrorMessage } from "@/lib/error-messages"
 import { useAuth } from "@/contexts/AuthContext"
 
+
+
 export default function BusinessPage() {
   const params = useParams()
   const router = useRouter()
@@ -37,6 +39,7 @@ export default function BusinessPage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [contactInfo, setContactInfo] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -55,16 +58,24 @@ export default function BusinessPage() {
         const companyData = await CompaniesService.getCompanyById(companyId)
         setBusiness(companyData)
 
-        // Fetch reviews, products, and services in parallel
-        const [reviewsData, productsData, servicesData] = await Promise.allSettled([
-          ReviewsService.getCompanyReviews(companyId).catch(() => []),
+        // Fetch products, services, and contact info in parallel
+        // Note: Backend doesn't have a reviews endpoint for specific companies yet
+        const [productsData, servicesData] = await Promise.allSettled([
           CompaniesService.getCompanyProducts(companyId).catch(() => []),
           CompaniesService.getCompanyServices(companyId).catch(() => []),
         ])
 
-        if (reviewsData.status === 'fulfilled') setReviews(reviewsData.value)
         if (productsData.status === 'fulfilled') setProducts(productsData.value)
         if (servicesData.status === 'fulfilled') setServices(servicesData.value)
+
+        // Try to fetch contact info (if it exists)
+        try {
+          // Note: There's no GET endpoint for contact info, so we'll use the company data
+          // Contact info is set via updateContactInfo but not retrievable separately
+          // We'll show owner_email as fallback
+        } catch (err) {
+          console.log("Contact info not available")
+        }
 
       } catch (err: any) {
         const friendlyMessage = getUserFriendlyErrorMessage(err.message)
@@ -162,36 +173,68 @@ export default function BusinessPage() {
     ],
   }
 
+  // Rating label for 1-10 scale (Misikir Score)
   const renderRatingLabel = (rating: number) => {
-    if (rating === 0) return "Very Poor"
-    if (rating <= 2) return "Poor"
-    if (rating <= 4) return "Below Average"
+    if (rating === 0) return "Not Rated"
+    if (rating <= 2) return "Very Poor"
+    if (rating <= 4) return "Poor"
+    if (rating <= 5) return "Below Average"
     if (rating <= 6) return "Average"
-    if (rating <= 8) return "Good"
-    if (rating <= 9) return "Very Good"
-    return "Excellent"
+    if (rating <= 7) return "Good"
+    if (rating <= 8) return "Very Good"
+    if (rating <= 9) return "Excellent"
+    return "Outstanding"
+  }
+
+  // Calculate percentage for rating distribution (mock data for now)
+  const getRatingDistribution = (rating: number) => {
+    // This is mock distribution - backend doesn't provide this yet
+    const distributions: { [key: number]: string } = {
+      10: "40%",
+      8: "30%",
+      6: "15%",
+      4: "10%",
+      2: "5%"
+    }
+    return distributions[rating] || "0%"
   }
 
   const handleSubmitReview = async (reviewData: any) => {
+    if (!user) {
+      toast.error("Please log in to submit a review")
+      return
+    }
+
     try {
-      const data = {
-        company: companyId,
-        rating: reviewData.rating,
-        content: reviewData.comment,
-        title: reviewData.title || 'Review'
+      // Create FormData if image is provided
+      let data: FormData | { company: number; rating: number; content: string };
+
+      if (reviewData.image) {
+        const formData = new FormData();
+        formData.append('company', companyId.toString());
+        formData.append('rating', reviewData.rating.toString()); // Backend expects 1-5
+        formData.append('content', reviewData.comment.trim());
+        formData.append('image', reviewData.image);
+        data = formData;
+      } else {
+        data = {
+          company: companyId,
+          rating: reviewData.rating, // Backend expects 1-5 (ReviewForm should provide this)
+          content: reviewData.comment.trim(),
+        };
       }
 
-      await ReviewsService.createReview(data)
+      // Submit review (backend extracts user from JWT token)
+      await ReviewsService.createReview(data);
 
       toast.success("Review submitted!", {
-        description: "Thank you for your feedback.",
+        description: "Thank you for your feedback. Your review will appear after refresh.",
       })
 
       setShowReviewForm(false)
 
-      // Refresh reviews
-      const updatedReviews = await ReviewsService.getCompanyReviews(companyId)
-      setReviews(updatedReviews)
+      // Note: Backend doesn't have endpoint to fetch company reviews yet
+      // User needs to refresh page to see new review
     } catch (err: any) {
       const friendlyMessage = getUserFriendlyErrorMessage(err.message)
       toast.error("Unable to submit review", {
@@ -497,92 +540,74 @@ export default function BusinessPage() {
                         <div className="mb-6 flex flex-col items-center justify-between gap-4 border-b dark:border-gray-800 pb-6 sm:flex-row">
                           <div className="text-center sm:text-left">
                             <div className="flex items-center justify-center gap-2 sm:justify-start">
-                              <span className="text-5xl font-bold dark:text-white">{business.misikir_score}</span>
+                              <span className="text-5xl font-bold dark:text-white">{business.misikir_score.toFixed(1)}</span>
                               <div className="flex flex-col">
-                                <div className="text-sm font-medium dark:text-white">{renderRatingLabel(business.misikir_score)}</div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Based on {business.misikir_reviews_count} reviews</span>
+                                <div className="flex items-center gap-1">
+                                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                                  <span className="text-sm font-medium dark:text-white">{renderRatingLabel(business.misikir_score)}</span>
+                                </div>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Out of 10 • {business.misikir_reviews_count} reviews</span>
                               </div>
                             </div>
                           </div>
                           <div className="w-full sm:w-auto">
                             <div className="grid gap-2">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Rating Distribution</p>
                               {[10, 8, 6, 4, 2].map((rating) => (
                                 <div key={rating} className="flex items-center gap-2">
-                                  <span className="w-4 text-xs">{rating}</span>
-                                  <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200">
+                                  <span className="w-6 text-xs font-medium dark:text-white">{rating}</span>
+                                  <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                                     <div
-                                      className="h-full bg-yellow-400"
-                                      style={{
-                                        width: `${rating === 10
-                                          ? "60%"
-                                          : rating === 8
-                                            ? "25%"
-                                            : rating === 6
-                                              ? "10%"
-                                              : rating === 4
-                                                ? "3%"
-                                                : "2%"
-                                          }`,
-                                      }}
+                                      className="h-full bg-yellow-400 transition-all"
+                                      style={{ width: getRatingDistribution(rating) }}
                                     ></div>
                                   </div>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 w-10">{getRatingDistribution(rating)}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         </div>
 
+                        {/* Reviews display - Backend doesn't have endpoint yet */}
                         <div className="space-y-6">
-                          {reviews.length > 0 ? (
-                            reviews.map((review) => (
-                              <div key={review.id} className="border-b dark:border-gray-800 pb-6 last:border-0 last:pb-0">
-                                <div className="mb-2 flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                                      {review.reviewer_name ? review.reviewer_name.charAt(0).toUpperCase() : 'A'}
-                                    </div>
-                                    <div>
-                                      <p className="font-medium dark:text-white">{review.reviewer_name || 'Anonymous'}</p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {new Date(review.created_at).toLocaleDateString('en-US', {
-                                          year: 'numeric',
-                                          month: 'long',
-                                          day: 'numeric'
-                                        })}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <span className="font-medium dark:text-white">{review.misikir_score}/10</span>
-                                    <span className="ml-1 text-xs dark:text-gray-400">- {renderRatingLabel(review.misikir_score)}</span>
-                                  </div>
-                                </div>
-                                <p className="mb-4 text-gray-700 dark:text-gray-300">{review.review_text}</p>
-
-                                <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-gray-50 dark:bg-gray-800 p-3 text-xs md:grid-cols-3">
-                                  <div>
-                                    <span className="font-medium dark:text-white">Time:</span> {review.time}/10
-                                  </div>
-                                  <div>
-                                    <span className="font-medium dark:text-white">Quality:</span> {review.quality}/10
-                                  </div>
-                                  <div>
-                                    <span className="font-medium dark:text-white">Quantity:</span> {review.quantity}/10
-                                  </div>
-                                  <div>
-                                    <span className="font-medium dark:text-white">Trust:</span> {review.trust}/10
-                                  </div>
-                                  <div>
-                                    <span className="font-medium dark:text-white">Honesty:</span> {review.honesty}/10
-                                  </div>
-                                  <div>
-                                    <span className="font-medium dark:text-white">Service:</span> {review.service}/10
-                                  </div>
-                                </div>
-                              </div>
-                            ))
+                          {business.misikir_reviews_count > 0 ? (
+                            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-6 text-center">
+                              <MessageSquare className="h-12 w-12 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
+                              <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                                {business.misikir_reviews_count} {business.misikir_reviews_count === 1 ? 'Review' : 'Reviews'} Available
+                              </h3>
+                              <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
+                                This business has {business.misikir_reviews_count} customer {business.misikir_reviews_count === 1 ? 'review' : 'reviews'} with an average Misikir Score of {business.misikir_score.toFixed(1)}/10.
+                                Review details will be available soon when the backend adds the reviews endpoint.
+                              </p>
+                              {!isOwner && (
+                                <Button
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => user ? setShowReviewForm(true) : router.push('/login')}
+                                >
+                                  <MessageSquare className="mr-2 h-4 w-4" />
+                                  Be the Next to Review
+                                </Button>
+                              )}
+                            </div>
                           ) : (
-                            <p className="text-center text-muted-foreground py-8">No reviews yet. Be the first to review!</p>
+                            <div className="text-center py-12">
+                              <MessageSquare className="h-16 w-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No Reviews Yet</h3>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                                Be the first to share your experience with {business.name}!
+                              </p>
+                              {!isOwner && (
+                                <Button
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => user ? setShowReviewForm(true) : router.push('/login')}
+                                >
+                                  <MessageSquare className="mr-2 h-4 w-4" />
+                                  Write the First Review
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </CardContent>

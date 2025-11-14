@@ -72,37 +72,13 @@ export default function LoginPage() {
         return; // EXIT IMMEDIATELY - don't run any code below
       }
 
-      // Only show this toast and check company if NO redirect
+      // Only show this toast if NO redirect
       toast.success("Welcome back!", {
         description: "You have successfully logged in.",
       });
 
-      // Only check for company if no redirect was specified AND flag is not set
-      if (!shouldRedirect) {
-        try {
-          const companies = await CompaniesService.getMyCompanies();
-
-          if (companies && companies.length > 0) {
-            // User has company, redirect to company profile
-            router.push(`/business/${companies[0].id}`);
-          } else {
-            // No company, show prompt and redirect to create company
-            toast.info("Create your business profile", {
-              description: "Let's set up your business profile to get started.",
-              duration: 4000,
-            });
-
-            setTimeout(() => {
-              router.push("/company/setup");
-            }, 1500);
-          }
-        } catch (companyError) {
-          // If there's an error fetching companies, just redirect to home silently
-          // This is not a critical error - user is logged in successfully
-          console.error("Error fetching companies:", companyError);
-          router.push("/");
-        }
-      }
+      // Always redirect to home page after login (unless there's a specific redirect)
+      router.push("/");
     } catch (err) {
       if (err instanceof ApiError) {
         const friendlyMessage = getUserFriendlyErrorMessage(err.message);

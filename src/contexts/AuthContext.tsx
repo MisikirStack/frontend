@@ -38,7 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            const userData = await apiClient.get<User>('/api/auth/profile/', true)
+            const userData = await apiClient.get<any>('/api/auth/profile/', true)
+
+            // Map user_id to id if needed (backend might return user_id instead of id)
+            if (userData.user_id && !userData.id) {
+                userData.id = userData.user_id
+            }
+
+            console.log('User profile loaded:', { email: userData.email, id: userData.id, hasId: !!userData.id })
             setUser(userData)
         } catch (error) {
             console.error('Failed to fetch user profile:', error)
@@ -70,6 +77,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 // Set user from response
                 if (response.user) {
+                    // Map user_id to id if needed
+                    if (response.user.user_id && !response.user.id) {
+                        response.user.id = response.user.user_id
+                    }
                     setUser(response.user)
                 }
 
@@ -81,6 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 tokenManager.setTokens(response.access, response.refresh)
 
                 if (response.user) {
+                    // Map user_id to id if needed
+                    if (response.user.user_id && !response.user.id) {
+                        response.user.id = response.user.user_id
+                    }
                     setUser(response.user)
                 } else {
                     await fetchUserProfile()
@@ -108,6 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 tokenManager.setTokens(response.tokens.access, response.tokens.refresh)
 
                 if (response.user) {
+                    // Map user_id to id if needed
+                    if (response.user.user_id && !response.user.id) {
+                        response.user.id = response.user.user_id
+                    }
                     setUser(response.user)
                 }
                 return
@@ -133,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout = useCallback(() => {
         tokenManager.clearTokens()
         setUser(null)
-        router.push('/login')
+        router.push('/')
     }, [router])
 
     /**
