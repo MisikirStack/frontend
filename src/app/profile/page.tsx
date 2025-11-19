@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthService, CompaniesService, SearchService } from "@/services/api";
 import { toast } from "sonner";
 import type { CompanyList, UserRole } from "@/types/api";
+import { getValidProfilePictureUrl } from "@/lib/utils";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -223,7 +224,7 @@ export default function ProfilePage() {
                                 <div className="mb-4 inline-block">
                                     <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
                                         <AvatarImage
-                                            src={user.profile_picture || undefined}
+                                            src={getValidProfilePictureUrl(user.profile_picture) || undefined}
                                             alt={user.name}
                                         />
                                         <AvatarFallback className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 text-3xl">

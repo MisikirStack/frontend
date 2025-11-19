@@ -28,6 +28,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageToggle } from "@/components/language-toggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategories } from "@/hooks/use-api";
+import { getValidProfilePictureUrl } from "@/lib/utils";
 
 interface NavbarProps {
     onCategorySelect?: (category: string | undefined) => void;
@@ -244,7 +245,7 @@ export function Navbar({ onCategorySelect, selectedCategory, onLocationSelect, s
                                     <Button variant="ghost" className="flex items-center gap-2">
                                         <Avatar className="h-8 w-8">
                                             <AvatarImage
-                                                src={user.profile_picture || undefined}
+                                                src={getValidProfilePictureUrl(user.profile_picture) || undefined}
                                                 alt={user.name}
                                             />
                                             <AvatarFallback className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
