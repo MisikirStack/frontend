@@ -59,6 +59,7 @@ export class ApiError extends Error {
  */
 interface RequestConfig extends RequestInit {
     requiresAuth?: boolean
+    skipContentTypeHeader?: boolean
 }
 
 /**
@@ -134,13 +135,13 @@ class ApiClient {
     /**
      * Build headers for the request
      */
-    private buildHeaders(requiresAuth: boolean = false, customHeaders: HeadersInit = {}): HeadersInit {
+    private buildHeaders(requiresAuth: boolean = false, customHeaders: HeadersInit = {}, skipContentTypeHeader: boolean = false): HeadersInit {
         const headers: Record<string, string> = {
             ...(customHeaders as Record<string, string>),
         }
 
         // Don't set Content-Type for FormData (browser will set it with boundary)
-        if (!(customHeaders instanceof Headers) && !('Content-Type' in customHeaders)) {
+        if (!skipContentTypeHeader && !(customHeaders instanceof Headers) && !('Content-Type' in customHeaders)) {
             headers['Content-Type'] = 'application/json'
         }
 
@@ -161,10 +162,10 @@ class ApiClient {
         endpoint: string,
         config: RequestConfig = {}
     ): Promise<T> {
-        const { requiresAuth = false, headers: customHeaders = {}, ...restConfig } = config
+        const { requiresAuth = false, skipContentTypeHeader = false, headers: customHeaders = {}, ...restConfig } = config
         const url = `${this.baseURL}${endpoint}`
 
-        const headers = this.buildHeaders(requiresAuth, customHeaders)
+        const headers = this.buildHeaders(requiresAuth, customHeaders, skipContentTypeHeader)
 
         try {
             let response = await fetch(url, {
@@ -183,7 +184,7 @@ class ApiClient {
                         this.onTokenRefreshed(newToken)
 
                         // Retry the original request with new token
-                        const newHeaders = this.buildHeaders(true, customHeaders)
+                        const newHeaders = this.buildHeaders(true, customHeaders, skipContentTypeHeader)
                         response = await fetch(url, {
                             ...restConfig,
                             headers: newHeaders,
@@ -194,7 +195,7 @@ class ApiClient {
                     return new Promise((resolve, reject) => {
                         this.subscribeTokenRefresh(async (token: string) => {
                             try {
-                                const newHeaders = this.buildHeaders(true, customHeaders)
+                                const newHeaders = this.buildHeaders(true, customHeaders, skipContentTypeHeader)
                                 const retryResponse = await fetch(url, {
                                     ...restConfig,
                                     headers: newHeaders,
@@ -211,7 +212,10 @@ class ApiClient {
 
             return await this.handleResponse<T>(response)
         } catch (error) {
-            console.error('API request error:', error)
+            // Only log if it's not an ApiError (which are expected operational errors)
+            if (!(error instanceof ApiError)) {
+                console.error('API request error:', error)
+            }
             throw error
         }
     }
@@ -293,6 +297,7 @@ class ApiClient {
         return this.request<T>(endpoint, {
             method: 'POST',
             requiresAuth,
+            skipContentTypeHeader: isFormData,
             body: isFormData ? data : JSON.stringify(data),
             headers: isFormData ? {} : { 'Content-Type': 'application/json' },
         })
@@ -308,6 +313,7 @@ class ApiClient {
         return this.request<T>(endpoint, {
             method: 'PUT',
             requiresAuth,
+            skipContentTypeHeader: isFormData,
             body: isFormData ? data : JSON.stringify(data),
             headers: isFormData ? {} : { 'Content-Type': 'application/json' },
         })
@@ -323,6 +329,7 @@ class ApiClient {
         return this.request<T>(endpoint, {
             method: 'PATCH',
             requiresAuth,
+            skipContentTypeHeader: isFormData,
             body: isFormData ? data : JSON.stringify(data),
             headers: isFormData ? {} : { 'Content-Type': 'application/json' },
         })

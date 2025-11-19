@@ -52,6 +52,7 @@ export default function ProfilePage() {
 
     const [formData, setFormData] = useState({
         name: "",
+        email: "",
         phone: "",
         telegram_username: "",
     });
@@ -119,6 +120,7 @@ export default function ProfilePage() {
         if (user) {
             setFormData({
                 name: user.name || "",
+                email: user.email || "",
                 phone: user.phone || "",
                 telegram_username: user.telegram_username || "",
             });
@@ -138,6 +140,15 @@ export default function ProfilePage() {
         try {
             const formDataToSend = new FormData();
             formDataToSend.append("name", formData.name);
+            
+            // Only send email if it has changed and is not empty
+            const currentEmail = user?.email || "";
+            const newEmail = formData.email.trim();
+            
+            if (newEmail && newEmail !== currentEmail) {
+                formDataToSend.append("email", newEmail);
+            }
+            
             if (formData.phone) formDataToSend.append("phone", formData.phone);
             if (formData.telegram_username) formDataToSend.append("telegram_username", formData.telegram_username);
 
@@ -146,8 +157,13 @@ export default function ProfilePage() {
             setIsEditing(false);
             toast.success("Profile updated successfully!");
         } catch (err: any) {
-            console.error("Failed to update profile:", err);
-            toast.error(err.message || "Failed to update profile");
+            // console.error("Failed to update profile:", err); // Suppress console error as we handle it in UI
+            let message = err.message || "Failed to update profile";
+            if (message.toLowerCase().includes("email") && message.toLowerCase().includes("exists")) {
+                message = "This email address is already in use by another account.";
+            }
+            setError(message);
+            toast.error(message);
         } finally {
             setIsSaving(false);
         }
@@ -157,6 +173,7 @@ export default function ProfilePage() {
         if (user) {
             setFormData({
                 name: user.name || "",
+                email: user.email || "",
                 phone: user.phone || "",
                 telegram_username: user.telegram_username || "",
             });
@@ -869,6 +886,12 @@ export default function ProfilePage() {
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
+                                            {error && (
+                                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 p-3 rounded-md text-sm flex items-center gap-2">
+                                                    <XCircle className="h-4 w-4" />
+                                                    {error}
+                                                </div>
+                                            )}
                                             <div className="space-y-2">
                                                 <Label htmlFor="name-settings">Full Name</Label>
                                                 <Input
@@ -886,13 +909,12 @@ export default function ProfilePage() {
                                                 <Label htmlFor="email-settings">Email</Label>
                                                 <Input
                                                     id="email-settings"
-                                                    value={user.email}
-                                                    disabled
-                                                    className="bg-muted h-12"
+                                                    name="email"
+                                                    value={formData.email}
+                                                    onChange={handleInputChange}
+                                                    disabled={!isEditing}
+                                                    className="h-12"
                                                 />
-                                                <p className="text-xs text-muted-foreground">
-                                                    Email cannot be changed
-                                                </p>
                                             </div>
 
                                             <div className="space-y-2">

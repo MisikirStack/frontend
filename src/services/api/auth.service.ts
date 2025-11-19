@@ -49,7 +49,7 @@ export class AuthService {
      * Update user profile
      */
     static async updateProfile(data: FormData): Promise<User> {
-        return await apiClient.put<User>("/api/auth/profile/", data, true);
+        return await apiClient.patch<User>("/api/auth/profile/", data, true);
     }
 
     /**
