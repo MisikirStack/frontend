@@ -119,4 +119,19 @@ export class AuthService {
 
         return response;
     }
+
+    /**
+     * Change password
+     */
+    static async changePassword(data: {
+        old_password: string;
+        new_password: string;
+        confirm_password: string;
+    }): Promise<{ message: string }> {
+        return await apiClient.post<{ message: string }>(
+            "/api/auth/change-password/",
+            data,
+            true
+        );
+    }
 }

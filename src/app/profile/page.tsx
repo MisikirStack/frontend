@@ -55,6 +55,14 @@ export default function ProfilePage() {
         telegram_username: "",
     });
 
+    // Password change state
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [passwordData, setPasswordData] = useState({
+        old_password: "",
+        new_password: "",
+        confirm_password: "",
+    });
+
     // Check if user is admin (hardcoded for admin@ex.com)
     const isAdmin = user?.email === "admin@ex.com";
 
@@ -161,6 +169,53 @@ export default function ProfilePage() {
             });
         }
         setIsEditing(false);
+    };
+
+    const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setPasswordData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handlePasswordChange = async () => {
+        setIsChangingPassword(true);
+        setError("");
+        setSuccess("");
+
+        try {
+            // Validation
+            if (!passwordData.old_password || !passwordData.new_password || !passwordData.confirm_password) {
+                toast.error("All password fields are required");
+                setIsChangingPassword(false);
+                return;
+            }
+
+            if (passwordData.new_password.length < 6) {
+                toast.error("New password must be at least 6 characters long");
+                setIsChangingPassword(false);
+                return;
+            }
+
+            if (passwordData.new_password !== passwordData.confirm_password) {
+                toast.error("New passwords do not match");
+                setIsChangingPassword(false);
+                return;
+            }
+
+            await AuthService.changePassword(passwordData);
+            toast.success("Password changed successfully!");
+            
+            // Clear password fields
+            setPasswordData({
+                old_password: "",
+                new_password: "",
+                confirm_password: "",
+            });
+        } catch (err: any) {
+            console.error("Failed to change password:", err);
+            toast.error(err.message || "Failed to change password");
+        } finally {
+            setIsChangingPassword(false);
+        }
     };
 
     const handleDeleteClick = (company: CompanyList) => {
@@ -923,8 +978,8 @@ export default function ProfilePage() {
                                         </CardContent>
                                     </Card>
 
-                                    {/* Change Password Section - Coming Soon */}
-                                    <Card className="border-green-200 dark:border-green-900/30 opacity-60">
+                                    {/* Change Password Section */}
+                                    <Card className="border-green-200 dark:border-green-900/30">
                                         <CardHeader>
                                             <div className="flex items-center gap-2">
                                                 <Lock className="h-5 w-5 text-green-600 dark:text-green-500" />
@@ -935,53 +990,55 @@ export default function ProfilePage() {
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
-                                            <div className="bg-muted p-4 rounded-lg border border-dashed">
-                                                <p className="text-sm text-muted-foreground text-center">
-                                                    🔧 Password change feature is coming soon!
-                                                    <br />
-                                                    <span className="text-xs">The backend endpoint is being developed.</span>
-                                                </p>
-                                            </div>
-
-                                            <div className="space-y-2 pointer-events-none">
-                                                <Label htmlFor="current_password">Current Password</Label>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="old_password">Current Password</Label>
                                                 <Input
-                                                    id="current_password"
+                                                    id="old_password"
+                                                    name="old_password"
                                                     type="password"
-                                                    disabled
+                                                    value={passwordData.old_password}
+                                                    onChange={handlePasswordInputChange}
                                                     placeholder="Enter current password"
                                                     className="h-12"
+                                                    disabled={isChangingPassword}
                                                 />
                                             </div>
 
-                                            <div className="space-y-2 pointer-events-none">
+                                            <div className="space-y-2">
                                                 <Label htmlFor="new_password">New Password</Label>
                                                 <Input
                                                     id="new_password"
+                                                    name="new_password"
                                                     type="password"
-                                                    disabled
-                                                    placeholder="Enter new password (min 8 characters)"
+                                                    value={passwordData.new_password}
+                                                    onChange={handlePasswordInputChange}
+                                                    placeholder="Enter new password (min 6 characters)"
                                                     className="h-12"
+                                                    disabled={isChangingPassword}
                                                 />
                                             </div>
 
-                                            <div className="space-y-2 pointer-events-none">
+                                            <div className="space-y-2">
                                                 <Label htmlFor="confirm_password">Confirm New Password</Label>
                                                 <Input
                                                     id="confirm_password"
+                                                    name="confirm_password"
                                                     type="password"
-                                                    disabled
+                                                    value={passwordData.confirm_password}
+                                                    onChange={handlePasswordInputChange}
                                                     placeholder="Confirm new password"
                                                     className="h-12"
+                                                    disabled={isChangingPassword}
                                                 />
                                             </div>
 
                                             <Button
-                                                disabled
+                                                onClick={handlePasswordChange}
+                                                disabled={isChangingPassword}
                                                 className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 w-full"
                                             >
                                                 <Lock className="mr-2 h-4 w-4" />
-                                                Change Password (Coming Soon)
+                                                {isChangingPassword ? "Changing Password..." : "Change Password"}
                                             </Button>
                                         </CardContent>
                                     </Card>
