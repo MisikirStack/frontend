@@ -15,6 +15,7 @@ interface AuthContextType {
     isLoading: boolean
     isAuthenticated: boolean
     login: (credentials: LoginRequest) => Promise<void>
+    loginWithTelegram: (telegramData: any) => Promise<void>
     register: (data: RegisterRequest) => Promise<void>
     logout: () => void
     refreshUser: () => Promise<void>
@@ -106,13 +107,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // If none of the formats match, throw error with details
             throw new Error(`Invalid login response format. Received keys: ${Object.keys(response).join(', ')}`)
         } catch (error) {
-            console.error('Login error:', error)
+            console.error('Login failed:', error)
             throw error
         }
     }
 
     /**
-     * Register new user
+     * Login with Telegram
+     */
+    const loginWithTelegram = async (telegramData: any) => {
+        try {
+            // Call the Next.js API route which will verify and then call the backend
+            const response = await fetch('/api/auth/telegram-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(telegramData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Telegram login failed');
+            }
+
+            const data = await response.json();
+
+            // Handle nested format: { user: {...}, tokens: { access: "...", refresh: "..." } }
+            if (data.tokens && data.tokens.access && data.tokens.refresh) {
+                tokenManager.setTokens(data.tokens.access, data.tokens.refresh);
+                if (data.user) {
+                    if (data.user.user_id && !data.user.id) {
+                        data.user.id = data.user.user_id;
+                    }
+                    setUser(data.user);
+                } else {
+                    await fetchUserProfile();
+                }
+                return;
+            }
+            
+            // Handle flat format: { access, refresh, user }
+            if (data.access && data.refresh) {
+                tokenManager.setTokens(data.access, data.refresh);
+                if (data.user) {
+                     if (data.user.user_id && !data.user.id) {
+                        data.user.id = data.user.user_id
+                    }
+                    setUser(data.user);
+                } else {
+                    await fetchUserProfile();
+                }
+                return;
+            }
+
+            throw new Error(`Invalid Telegram login response format. Received keys: ${Object.keys(data).join(', ')}`);
+        } catch (error) {
+            console.error('Telegram login failed:', error);
+            throw error;
+        }
+    };
+
+    /**
+     * Register user
      */
     const register = async (data: RegisterRequest) => {
         try {
@@ -174,13 +229,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        loginWithTelegram,
         register,
         logout,
         refreshUser,
         updateUser,
     }
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    return (
+        <AuthContext.Provider
+            value={{
+                user,
+                isLoading,
+                isAuthenticated: !!user,
+                login,
+                loginWithTelegram,
+                register,
+                logout,
+                refreshUser: fetchUserProfile,
+                updateUser,
+            }}
+        >
+            {children}
+        </AuthContext.Provider>
+    )
 }
 
 /**
